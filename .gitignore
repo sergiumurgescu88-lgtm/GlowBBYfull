@@ -1,20 +1,38 @@
-node_modules/
-dist/
-.DS_Store
-*.log
-.env
-node_modules/
-dist/
-.env
-node_modules/
-dist/
-node_modules/
-dist/
+# --- DEPENDINȚE ȘI CACHE ---
 node_modules/
 venv/
 .venv/
 __pycache__/
-*.pyc
-dist/
-build/
+*.py[cod]
+*$py.class
+*.so
+dist-info/
+
+# --- FIȘIERE DE LOCK (se regenerează la install) ---
+package-lock.json
+bun.lock
+yarn.lock
+
+# --- BAZE DE DATE ȘI MEDIA (prea mari pentru GitHub) ---
+*.db
+*.sqlite
+*.sqlite3
+*.mp4
+*.mov
+*.avi
+*.zip
+apps/api/uploads/
+apps/jobs/public/images/
+
+# --- FIȘIERE BACKUP ȘI TEMPORARE ---
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*~
+
+# --- ALTELE ---
 .env
+debug_log.txt
+.DS_Store
