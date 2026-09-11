@@ -1,0 +1,7 @@
+[02.09.2026, 00:54:45] Nume: Maria Test | Tel: 0712345678 | Email: maria@test.com | Motivatie: Independență Financiară
+[02.09.2026, 01:58:07] Nume: Test Telegram | Tel: 0700000000 | Email: test@test.com | Motivatie: Verificare
+[02.09.2026, 03:02:27] Nume: sergiu | Tel: 0768676141 | Email: N/A | Motivatie: Independență Financiară
+[02.09.2026, 03:06:37] Nume: Test Final IPv4 | Tel: 0799999999 | Email: test@test.com | Motivatie: Verificare Telegram
+[02.09.2026, 03:13:02] Nume: Sergiu Test | Tel: 0700000000 | Email: sergiu@test.com | Motivatie: Test Final Telegram
+[02.09.2026, 03:13:25] Nume: lulu | Tel: 0768676141 | Email: N/A | Motivatie: Control Asupra Timpului
+[02.09.2026, 03:47:03] Nume: Sergiu | Tel: 0766222111 | Email: N/A | Motivatie: Independență Financiară

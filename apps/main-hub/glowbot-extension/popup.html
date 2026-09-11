@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>GlowBot Control Panel</title>
+  <style>
+    :root { --bg: #000000; --card: rgba(18, 18, 23, 0.75); --border: rgba(255, 255, 255, 0.08); --primary: #ffffff; --text: #ededed; --text-muted: #888888; --radius: 10px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 375px; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; font-size: 13px; padding: 16px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; margin-bottom: 12px; backdrop-filter: blur(14px); }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+    label { display: block; font-size: 11px; font-weight: 500; margin-bottom: 5px; color: #d1d5db; }
+    input, textarea { width: 100%; background: rgba(0,0,0,0.55); border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: #fff; font-size: 12px; outline: none; margin-bottom: 8px; }
+    input:focus, textarea:focus { border-color: rgba(255,255,255,0.22); }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+    .switch input { opacity: 0; width: 0; height: 0; margin: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .2s; border-radius: 18px; }
+    .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: #a1a1aa; transition: .2s; border-radius: 50%; }
+    input:checked + .slider { background-color: #ffffff; }
+    input:checked + .slider:before { transform: translateX(16px); background-color: #000; }
+    button { width: 100%; background: #ffffff; color: #000; border: none; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button:disabled { background: #27272a; color: #71717a; cursor: not-allowed; }
+    .btn-secondary { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border); }
+    #test-result-box { display: none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 11px; }
+    #test-result-box.success { background: rgba(0, 229, 153, 0.1); color: #a7f3d0; border: 1px solid rgba(0, 229, 153, 0.3); }
+    #test-result-box.error { background: rgba(255, 51, 68, 0.1); color: #fca5a5; border: 1px solid rgba(255, 51, 68, 0.3); }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>GlowBot</strong> <span style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">PRO V2</span></div>
+    <div style="font-size:11px; color:var(--text-muted);" id="stat-queue">Coadă: 0</div>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Securitate & Conexiune</div>
+    <label>Bot Token Secret</label>
+    <input type="password" id="bot-token" placeholder="glw_sec_...">
+    <label>Endpoint Backend</label>
+    <input type="text" id="backend-url" value="https://glowbby.online/v1/bot/event">
+    <button id="btn-test-conn" class="btn-secondary">⚡ Testează Conexiunea</button>
+    <div id="test-result-box"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Automatizări & Venituri</div>
+    <div class="toggle-row">
+      <div><div style="font-weight:500;">Raffle Tracker în HUD</div><div style="font-size:10px; color:var(--text-muted);">Numără intrările la tombolă</div></div>
+      <label class="switch"><input type="checkbox" id="toggle-raffle"><span class="slider"></span></label>
+    </div>
+    <label style="margin-top:8px;">Sumă intrare Raffle (Token-uri)</label>
+    <input type="number" id="raffle-amount" value="10">
+
+    <div class="toggle-row" style="margin-top:10px;">
+      <div><div style="font-weight:500;">Răspunsuri Batched (Anti-Spam)</div><div style="font-size:10px; color:var(--text-muted);">Groupează mulțumirile</div></div>
+      <label class="switch"><input type="checkbox" id="toggle-batch"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Moderare & Siguranță</div>
+    <label>Cuvinte Interzise (separate prin virgulă)</label>
+    <textarea id="forbidden-words" rows="3" placeholder="free show, scam, fake"></textarea>
+    <div style="font-size:10px; color:var(--text-muted);">Mesajele cu aceste cuvinte vor fi evidențiate cu ROȘU.</div>
+  </div>
+
+  <button id="btn-save">Salvează Toate Setările</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

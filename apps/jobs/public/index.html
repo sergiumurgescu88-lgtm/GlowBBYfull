@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I want to Glow | Glow Models Studio</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZ2xvdyIgY3g9IjUwJSIgY3k9IjUwJSIgcj0iNTAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I2ZjZDM0ZDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI2MCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNkNGFmMzc7c3RvcC1vcGFjaXR5OjAuNiIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZDRhZjM3O3N0b3Atb3BhY2l0eTowIiAvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPCEtLSBGdW5kYWx1bCBuZWdydSBhIGZvc3QgZWxpbWluYXQgcGVudHJ1IHRyYW5zcGFyZW7Im8SDIC0tPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjM1IiBmaWxsPSJ1cmwoI2dsb3cpIi8+CiAgPHBhdGggZD0iTSA1MCAyMCBMIDU1IDQ1IEwgODAgNTAgTCA1NSA1NSBMIDUwIDgwIEwgNDUgNTUgTCAyMCA1MCBMIDQ1IDQ1IFoiIGZpbGw9IiNmY2QzNGQiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI4IiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjk1Ii8+Cjwvc3ZnPg==">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/slim@3.0.2/tsparticles.slim.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { 'glow-gold': '#ff9f43', 'glow-dark': '#0a0a0a', 'glow-card': '#151515' },
+                    animation: { 'float': 'float 6s ease-in-out infinite', 'pulse-glow': 'pulse-glow 3s ease-in-out infinite' },
+                    keyframes: {
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-20px)' } },
+                        'pulse-glow': { '0%, 100%': { boxShadow: '0 0 20px rgba(255, 107, 53, 0.25)' }, '50%': { boxShadow: '0 0 40px rgba(255, 107, 53, 0.6)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: white; overflow-x: hidden; margin: 0; text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.4); }
+        .glow-text { filter: drop-shadow(0 0 20px rgba(255, 159, 67, 0.4)); text-shadow: 0 3px 15px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.5); color: #ffffff; -webkit-text-fill-color: #ffffff; text-shadow: 0 0 20px rgba(255, 159, 67, 0.8), 0 0 40px rgba(255, 159, 67, 0.5), 0 0 60px rgba(255, 159, 67, 0.3), 0 4px 15px rgba(0,0,0,0.9); animation: none; }
+        @keyframes shine { to { background-position: 200% center; } }
+        .glass-card { background: rgba(21, 21, 21, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 107, 53, 0.25); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; }
+        .glass-card:hover { border-color: rgba(255, 107, 53, 0.6); transform: translateY(-5px); box-shadow: 0 12px 40px rgba(255, 107, 53, 0.2); }
+        #tsparticles { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+        .content-wrapper { position: relative; z-index: 10; pointer-events: none; }
+        .content-wrapper > * { pointer-events: auto; }
+    
+    /* SLIDER FUNDAL CU FADE */
+    
+    /* OVERLAY SUBTIL PENTRU CONTRAST */
+    .background-slider::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.5) 100%);
+        pointer-events: none;
+    }
+
+    .background-slider {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        overflow: hidden;
+    }
+    .background-slider .slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+        animation: fadeSlide 65s infinite;
+    }
+    .background-slider .slide:nth-child(1) { animation-delay: 0s; }
+    .background-slider .slide:nth-child(2) { animation-delay: 5s; }
+    .background-slider .slide:nth-child(3) { animation-delay: 10s; }
+    .background-slider .slide:nth-child(4) { animation-delay: 15s; }
+    .background-slider .slide:nth-child(5) { animation-delay: 20s; }
+    .background-slider .slide:nth-child(6) { animation-delay: 25s; }
+    .background-slider .slide:nth-child(7) { animation-delay: 30s; }
+    .background-slider .slide:nth-child(8) { animation-delay: 35s; }
+    .background-slider .slide:nth-child(9) { animation-delay: 40s; }
+    .background-slider .slide:nth-child(10) { animation-delay: 45s; }
+    .background-slider .slide:nth-child(11) { animation-delay: 50s; }
+    .background-slider .slide:nth-child(12) { animation-delay: 55s; }
+    .background-slider .slide:nth-child(13) { animation-delay: 60s; }
+    
+    @keyframes fadeSlide {
+        0% { opacity: 0; }
+        3% { opacity: 0.4; }
+        7.5% { opacity: 0.4; }
+        10.5% { opacity: 0; }
+        100% { opacity: 0; }
+    }
+
+    </style>
+</head>
+
+    <!-- SLIDER FUNDAL -->
+    <div class="background-slider">
+        <div class="slide" style="background-image: url('/images/poza (1).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (2).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (3).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (4).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (5).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (6).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (7).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (8).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (9).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (10).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (11).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (12).jpg');"></div>
+        <div class="slide" style="background-image: url('/images/poza (13).jpg');"></div>
+    </div>
+
+<body class="antialiased">
+    <div id="tsparticles"></div>
+    <div class="content-wrapper">
+        <header class="min-h-screen flex flex-col justify-center items-center text-center px-4 relative">
+            <div class="animate-float">
+                <span class="inline-block px-4 py-1.5 mb-6 text-sm font-semibold rounded-full" style="color: #ffb86c; background: rgba(0,0,0,0.6); border: 1px solid rgba(255, 184, 108, 0.5); text-shadow: 0 1px 5px rgba(0,0,0,0.8);">🔒 100% Confidențialitate Garantată</span>
+                <h1 class="text-6xl md:text-8xl font-extrabold glow-text mb-6 tracking-tight">GLOW MODELS</h1>
+                <p class="text-xl md:text-2xl text-white max-w-3xl mx-auto leading-relaxed" style="text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.6);">Transformă-ți personalitatea în independență financiară cu ajutorul <span class="font-bold" style="color: #ffb86c; text-shadow: 0 0 15px rgba(255, 184, 108, 0.8), 0 2px 8px rgba(0,0,0,0.9);">Inteligenței Artificiale</span></p>
+                <a href="#apply" class="mt-10 inline-block px-10 py-4 font-bold text-lg rounded-lg hover:bg-yellow-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(212,175,55,0.4)]">Vreau să Strălucesc ✨</a>
+            </div>
+        </header>
+
+        <section class="py-20 px-4 max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 rounded-2xl text-center animate-pulse-glow"><div class="text-5xl font-bold text-glow-gold mb-2">10+</div><div class="text-gray-400 font-medium">Ani de Activitate</div></div>
+                <div class="glass-card p-8 rounded-2xl text-center animate-pulse-glow" style="animation-delay: 0.5s"><div class="text-5xl font-bold text-glow-gold mb-2">200+</div><div class="text-gray-400 font-medium">Colaborări Reușite</div></div>
+                <div class="glass-card p-8 rounded-2xl text-center animate-pulse-glow" style="animation-delay: 1s"><div class="text-5xl font-bold text-glow-gold mb-2">24/7</div><div class="text-gray-400 font-medium">Suport Dedicat</div></div>
+            </div>
+        </section>
+
+        <section class="py-20 px-4 max-w-7xl mx-auto">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-6 glow-text">De Ce Glow Models?</h2>
+            <p class="text-center text-gray-300 max-w-3xl mx-auto mb-16 text-lg" style="text-shadow: 0 2px 8px rgba(0,0,0,0.8);">
+                Nu suntem un simplu studio. Suntem o agenție de management propulsată de tehnologie, construită special pentru a-ți maximiza veniturile și a-ți proteja viața privată.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                <!-- Card 1: Confidențialitate -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4">🛡️</div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">Fortăreață Digitală</h3>
+                    <p class="text-gray-300 leading-relaxed">Geoblocare totală (inclusiv România), NDA legal strict și protecție avansată anti-screenshot. Identitatea ta reală rămâne 100% a ta. Zero risc de a fi recunoscută.</p>
+                </div>
+
+                <!-- Card 2: AI -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4"></div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">GlowBBY AI Intelligence</h3>
+                    <p class="text-gray-300 leading-relaxed">AI-ul nostru gestionează 80% din chat-uri, adaptându-se psihologic la fiecare fan. Tu creezi conținut, AI-ul vinde. Câștigi bani chiar și când dormi. Zero burnout.</p>
+                </div>
+
+                <!-- Card 3: Profile Management -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4">📈</div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">Branding & Creștere Explozivă</h3>
+                    <p class="text-gray-300 leading-relaxed">Nu lăsăm nimic la întâmplare. Optimizăm algoritmii, hashtag-urile și SEO-ul pe toate platformele (OF, Fansly, IG, TikTok) pentru a-ți aduce trafic constant și fani noi.</p>
+                </div>
+
+                <!-- Card 4: Concursuri -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4">🏆</div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">Recompense & Premii de Lux</h3>
+                    <p class="text-gray-300 leading-relaxed">La fiecare 2 luni, top modelele primesc premii cash substanțiale, gadget-uri premium, vacanțe sau sesiuni foto de lux. Performanța ta este răsplătită imediat și vizibil.</p>
+                </div>
+
+                <!-- Card 5: Transparență (NOU) -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4"></div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">Transparență Financiară Totală</h3>
+                    <p class="text-gray-300 leading-relaxed">Rapoarte clare, la zi, accesibile oricând. Fără taxe ascunse, fără "eroare de sistem". Îți primești banii săptămânal, direct în cont. Știi exact cât câștigi din fiecare fan.</p>
+                </div>
+
+                <!-- Card 6: Well-being (NOU) -->
+                <div class="glass-card p-8 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff9f43]/10 rounded-full blur-2xl group-hover:bg-[#ff9f43]/20 transition-all"></div>
+                    <div class="text-4xl mb-4">🧘</div>
+                    <h3 class="text-2xl font-bold mb-3 text-white">Flexibilitate & Fără Burnout</h3>
+                    <p class="text-gray-300 leading-relaxed">Programul îl stabilești 100% tu. Nu ai cote obligatorii stresante. Ai acces la suport dedicat pentru sănătatea mintală și o comunitate privată care te susține necondiționat.</p>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="py-20 px-4 max-w-5xl mx-auto">
+            <div class="glass-card p-8 md:p-10 rounded-2xl border border-glow-gold/30 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-glow-gold/10 rounded-full blur-3xl -z-10"></div>
+                <div class="text-center mb-8">
+                    <span class="inline-block px-4 py-1.5 mb-4 text-sm font-semibold text-glow-gold bg-glow-gold/10 border border-glow-gold/30 rounded-full">🧠 Live AI Demo</span>
+                    <h2 class="text-3xl md:text-4xl font-bold glow-text mb-4">GlowBBY Intelligence Platform</h2>
+                    <p class="text-gray-400 max-w-2xl mx-auto">Vezi cum AI-ul nostru analizează conversațiile reale și generează răspunsuri perfect adaptate <span class="font-bold" style="color: #ffb86c; text-shadow: 0 0 15px rgba(255, 184, 108, 0.8), 0 2px 8px rgba(0,0,0,0.9);">(în limba engleză)</span>.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Alege Atitudinea / Tonul</label>
+                        <select id="aiTone" class="w-full p-3 bg-glow-dark border border-glow-gold/30 rounded-lg text-white focus:border-glow-gold focus:outline-none transition-all">
+                            <option value="playful">😏 Jucăuș</option><option value="sarcastic">😈 Sarcastic</option><option value="shy">🙈 Timid</option><option value="serious">🧐 Serios</option>
+                            <option value="funny">😂 Funny</option><option value="happy">✨ Happy</option><option value="mysterious">🔮 Misterios</option><option value="dominant">👑 Dominant</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Tipul Fanului</label>
+                        <select id="aiFanType" class="w-full p-3 bg-glow-dark border border-glow-gold/30 rounded-lg text-white focus:border-glow-gold focus:outline-none transition-all">
+                            <option value="newbie">🌱 Newbie</option><option value="regular">💎 Regular</option><option value="whale">🐋 Whale</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-black/60 p-4 rounded-lg border border-orange-500/30 mb-6 font-mono text-xs md:text-sm text-gray-200 max-h-40 overflow-y-auto backdrop-blur-sm">
+                    <p class="text-[#ffb86c] font-bold mb-2">📝 Chat Log Input (Simulat):</p>
+                    <p>👤 Fan: "might drip all over our deal" <span class="text-green-400">[Tipped 25 tokens]</span></p>
+                    <p>👤 Fan: "ohhh fuckk lion... u re trying to get me wet and crazy for you"</p>
+                    <p>👤 Model: "hmmm damn if i knew u would do like that, would ve send u more"</p>
+                    <p>👤 Fan: "I looked at the pic again so I had to tip... holly molly lion, I can feel my juice already"</p>
+                </div>
+
+                <button onclick="generateStrategy()" class="w-full py-4 font-bold text-lg rounded-lg hover:bg-yellow-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(212,175,55,0.4)] flex items-center justify-center gap-2">
+                    <span>✨</span> Generate AI Strategy
+                </button>
+                <div id="aiOutput" class="hidden mt-8 space-y-4">
+                    <div class="bg-glow-dark/80 p-5 rounded-xl border border-glow-gold/20"><h4 class="text-glow-gold font-bold mb-2">🧠 DIAGNOZA:</h4><p id="outDiagnosis" class="text-gray-300 text-sm"></p></div>
+                    <div class="bg-glow-dark/80 p-5 rounded-xl border border-glow-gold/20"><h4 class="text-glow-gold font-bold mb-2">💬 MESAJELE GENERATE:</h4><ul id="outMessages" class="space-y-3 text-gray-300 text-sm"></ul></div>
+                    <div class="bg-glow-dark/80 p-5 rounded-xl border border-glow-gold/20"><h4 class="text-glow-gold font-bold mb-2">💸 RUTA DE MONETIZARE:</h4><p id="outMonetization" class="text-gray-300 text-sm"></p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="apply" class="py-20 px-4 max-w-2xl mx-auto">
+            <div class="glass-card p-8 md:p-12 rounded-2xl border-2 border-glow-gold/40 animate-pulse-glow">
+                <h2 class="text-3xl font-bold text-center mb-2 glow-text">I want to Glow 💖</h2>
+                <form id="glowForm" class="space-y-5">
+                    <input type="text" id="nume" placeholder="Numele Tău" required class="w-full p-4 bg-glow-dark border border-glow-gold/30 rounded-lg text-white focus:border-glow-gold focus:outline-none">
+                    <input type="tel" id="telefon" placeholder="Număr de Telefon" required class="w-full p-4 bg-glow-dark border border-glow-gold/30 rounded-lg text-white focus:border-glow-gold focus:outline-none">
+                    <select id="motivatie" required class="w-full p-4 bg-glow-dark border border-glow-gold/30 rounded-lg text-gray-300 focus:border-glow-gold focus:outline-none">
+                        <option value="" disabled selected>Ce îți dorești cel mai mult?</option>
+                        <option value="Independență Financiară">💰 Independență Financiară</option>
+                        <option value="Control Asupra Timpului">⏰ Control Asupra Timpului</option>
+                    </select>
+                    <button type="submit" id="submitBtn" class="w-full py-4 font-bold text-lg rounded-lg hover:bg-yellow-400 transition-all">Vreau să fiu contactată</button>
+                </form>
+                <div id="successMessage" class="hidden text-center py-10">
+                    <div class="text-6xl mb-4">✨</div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Mulțumim!</h3>
+                </div>
+            </div>
+        </section>
+
+        <footer class="py-12 px-4 text-center border-t border-glow-gold/20">
+            <p class="text-gray-400 mb-2">📍 Strada Cuza Vodă, Sector 4, București</p>
+            <p class="text-sm text-gray-600">© 2026 Glow Models Studio.</p>
+        </footer>
+    </div>
+
+    <script>
+        // CONFIGURARE EFECT FOC DE TABĂRĂ (Simplă și Garantată)
+        tsParticles.load("tsparticles", {
+            fullScreen: { enable: true, zIndex: -1 },
+            background: { color: { value: "#0a0a0a" } },
+            fpsLimit: 60,
+            particles: {
+                color: { value: ["#ff9f43", "#f7931e", "#ff9f43", "#ffa366"] },
+                move: { enable: true, speed: 0.8, direction: "top", random: true, straight: false, outModes: "out" },
+                number: { value: 70, density: { enable: true, area: 800 } },
+                opacity: { value: { min: 0.3, max: 0.8 }, animation: { enable: true, speed: 1, minimumValue: 0.1 } },
+                size: { value: { min: 1, max: 3 } },
+                shadow: { enable: true, color: "#ff9f43", blur: 6 }
+            },
+            interactivity: {
+                detectsOn: "window",
+                events: { onHover: { enable: true, mode: "attract" }, onClick: { enable: true, mode: "push" } },
+                modes: { attract: { distance: 200, duration: 0.6 }, push: { quantity: 3 } }
+            },
+            detectRetina: true
+        });
+
+        // LOGICA AI (Simplificată pentru a evita erorile)
+        const aiData = {
+            playful: {
+                newbie: { diagnosis: "Fan nou, timid, explorator. Abordare blândă, welcoming.", messages: ["Hey there, welcome! 👋 I see you're new here - want to start with something fun and easy?", "Hi cutie! 🥰 Since you're just getting started, how about I send you a little teaser? It's 20 tokens! 😜"], monetization: "PPV introductiv (20-40 tokens) cu conținut ușor." },
+                regular: { diagnosis: "Fan fidel, confortabil. Poți fi mai directă și jucaușă.", messages: ["Hey babe, missed you! 😉 You know what I have for you today? Something special...", "There's my favorite! 💕 Ready for round 2? I've got something new..."], monetization: "PPV standard (50-75 tokens) care continuă povestea voastră." },
+                whale: { diagnosis: "High-spender, vrea exclusivitate VIP.", messages: ["My VIP king is here! 👑 I saved something EXTRA special just for you - not available to anyone else.", "There's my favorite spender! 💎 You're the ONLY one who gets first access..."], monetization: "PPV premium (100-200+ tokens) cu conținut exclusiv." }
+            },
+            sarcastic: {
+                newbie: { diagnosis: "Fan nou, sceptic. Ironia fină îl va provoca.", messages: ["Oh look, a newbie! 🙄 Want to prove you're not just here to lurk?", "Welcome to the show, rookie!  If you think the free stuff is good, wait till you see what's behind the paywall..."], monetization: "PPV introductiv (25-45 tokens) ca test de curaj." },
+                regular: { diagnosis: "Fan fidel, obișnuit cu tonul tău sarcastic.", messages: ["Back again? 😜 I was starting to think you forgot about me...", "Oh, you're still alive? Good! 😏 I've got something that'll either blow your mind or make you cry..."], monetization: "PPV standard (50-75 tokens) prezentat ca provocare." },
+                whale: { diagnosis: "High-spender, se simte invincibil.", messages: ["Look who decided to grace us with his presence! 👑 Don't worry, I'll pretend I didn't notice you've been gone for 3 hours...", "My favorite wallet is here!  Just kidding... I've got something that'll make your credit card sweat..."], monetization: "PPV premium (100-200+ tokens) ca donație regală." }
+            },
+            shy: {
+                newbie: { diagnosis: "Fan nou, timid. Contrastul inocență/explicit creează fantezie.", messages: ["H-hi... 🙈 I didn't see you there... um, do you want to see something?", "Oh! You're new! 🙊 I'm a little nervous too... but maybe we can help each other feel better?"], monetization: "PPV introductiv (20-40 tokens) ca secret împărtășit." },
+                regular: { diagnosis: "Fan fidel, confortabil cu timiditatea ta.", messages: ["Hey you... 🙈 I made something new and I'm too shy to show anyone else... but you're not 'anyone', right?", "Hi... 😊 I've been thinking about you... and I made something special. Want to see it?"], monetization: "PPV standard (50-75 tokens) ca cadou personal." },
+                whale: { diagnosis: "High-spender, vede timiditatea ca exclusivitate.", messages: ["You're the only one I'd show this to...  Everyone else gets the confident version, but you get the real me.", "I made something really personal...  I wouldn't show this to just anyone, but you've earned it."], monetization: "PPV premium (100-200+ tokens) ca acces la intimitate." }
+            },
+            serious: {
+                newbie: { diagnosis: "Fan nou, direct. Abordare profesională, fără jocuri.", messages: ["Welcome. I appreciate you checking out my page. I have a collection that matches exactly what you're looking for.", "Thanks for stopping by. If you're serious about seeing premium content, I have an exclusive set available now."], monetization: "PPV introductiv (30-50 tokens) cu descriere exactă." },
+                regular: { diagnosis: "Fan fidel, apreciază profesionalismul.", messages: ["Good to see you again. I've produced something new this week - same quality you expect, but with a twist.", "Thanks for your continued support. I have a new release that builds on what you've seen before."], monetization: "PPV standard (60-80 tokens) cu accent pe calitate." },
+                whale: { diagnosis: "High-spender, vrea conținut exclusiv și acces prioritar.", messages: ["I've reserved something premium for you - not available to anyone else yet. Ready to invest?", "Your VIP access is active. I have a new exclusive release that's worth every token."], monetization: "PPV premium (120-250+ tokens) ca producție custom." }
+            },
+            funny: {
+                newbie: { diagnosis: "Fan nou, amuzat. O glumă bună rupe gheața.", messages: ["Welcome to the chaos! 🤣 Don't worry, I only bite... sometimes. Wanna see something that'll make you forget why you came here?", "Hey rookie! 😂 Fair warning: once you see what I have, you'll be hooked. No refunds on your sanity!"], monetization: "PPV introductiv (20-40 tokens) ca bilet de intrare în nebunie." },
+                regular: { diagnosis: "Fan fidel, împărtășește umorul tău.", messages: ["Guess who's back? 😂 Ready for another episode of 'Why Did I Spend Money on This'? Spoiler: you'll love it!", "There's my partner in crime! 🤣 I've got something new that'll either make you laugh or question your life choices..."], monetization: "PPV standard (50-75 tokens) ca extensie a glumei." },
+                whale: { diagnosis: "High-spender, apreciază că nu îl iei prea în serios.", messages: ["Look who's funding my coffee addiction! ☕ Don't worry, I made something extra special to justify your investment.", "My favorite human ATM is here! 💰 Just kidding... unless? 😜 I've got something that'll make your wallet cry happy tears!"], monetization: "PPV premium (100-200+ tokens) ca donație caritabilă." }
+            },
+            happy: {
+                newbie: { diagnosis: "Fan nou, răspunde la energie pozitivă.", messages: ["OMG hi!!  I'm so happy you're here! I have something super fun to show you - it'll make your day!", "Welcome!! 🌟 You just made my day by stopping by! Want to see something that'll make YOU smile?"], monetization: "PPV introductiv (25-45 tokens) ca cadou de bun venit." },
+                regular: { diagnosis: "Fan fidel, se simte apreciat.", messages: ["Yay you're here!! 🥰 I was just thinking about you! I made something new and I'm SO excited to show you!", "Hi bestie!!  Your tips always make me so happy! I have something special that'll make us both smile..."], monetization: "PPV standard (50-75 tokens) ca împărtășire de bucurie." },
+                whale: { diagnosis: "High-spender, se simte ca un erou care te face fericită.", messages: ["OMG my favorite person!! 🥰 You literally make my dreams come true! I made something EXTRA special just for you!", "You're here!! 🌟 I'm literally screaming! I've been working on something exclusive all week and you're the FIRST to see it!"], monetization: "PPV premium (100-200+ tokens) ca mulțumire specială." }
+            },
+            mysterious: {
+                newbie: { diagnosis: "Fan nou, intrigat. Stârnește curiozitatea maximă.", messages: ["You've stumbled into something... different. 🗝️ Want to see what hides behind the curtain?", "Welcome to the unknown... 🔮 I have a secret that only a few get to see. Are you brave enough?"], monetization: "PPV introductiv (30-50 tokens) ca cheie către secret." },
+                regular: { diagnosis: "Fan fidel, obișnuit cu misterul tău.", messages: ["You're back... 🗝️ Good. I've uncovered something new - a secret even deeper than before.", "I sense you're ready for the next layer... 🔮 I've hidden something special, and only you can find it."], monetization: "PPV standard (60-85 tokens) ca următorul nivel al misteriului." },
+                whale: { diagnosis: "High-spender, vede misterul ca inițiere exclusivă.", messages: ["You've proven yourself worthy... 🗝️ I'm about to reveal something that only the most dedicated get to see.", "The vault is opening... 🔮 What I'm about to show you has never been seen by anyone else. You're the chosen one."], monetization: "PPV premium (150-300+ tokens) ca acces la sanctuar." }
+            },
+            dominant: {
+                newbie: { diagnosis: "Fan nou, intimidat. Preiei controlul instant.", messages: ["So you're new here. Good. That means you don't have bad habits yet. Now, let's see if you can follow instructions...", "Welcome to MY world. 👑 You're here because you want something. Prove you deserve it."], monetization: "PPV introductiv (30-50 tokens) ca primul test de loialitate." },
+                regular: { diagnosis: "Fan fidel, acceptat în dinastia ta.", messages: ["Good boy, you're back on time. 👑 I have a new challenge for you - one that only my favorites get.", "You've earned your place here. 📋 Now, let's see if you're ready for the next level. Obey, and you'll be rewarded..."], monetization: "PPV standard (70-100 tokens) ca recompensă pentru ascultare." },
+                whale: { diagnosis: "High-spender, se simte regele curții tale.", messages: ["My most loyal subject returns. 👑 You've proven your worth with your generosity. Now, I grant you access to the royal vault.", "You've earned the highest honor. 💎 What I'm about to show you is reserved for kings only. Kneel, and receive your reward..."], monetization: "PPV premium (150-300+ tokens) ca tribut regal." }
+            }
+        };
+
+        function generateStrategy() {
+            const tone = document.getElementById('aiTone').value;
+            const fanType = document.getElementById('aiFanType').value;
+            const data = aiData[tone][fanType];
+            document.getElementById('outDiagnosis').innerText = data.diagnosis;
+            const msgList = document.getElementById('outMessages');
+            msgList.innerHTML = '';
+            data.messages.forEach(msg => {
+                const li = document.createElement('li');
+                li.className = "flex items-start gap-3 p-3 bg-glow-dark rounded-lg border border-glow-gold/10";
+                li.innerHTML = '<span class="text-glow-gold">💬</span> <span class="italic text-white">' + msg + '</span>';
+                msgList.appendChild(li);
+            });
+            let mText = data.monetization;
+            if (fanType === 'whale') mText += " ⚡ <span class='text-glow-gold'>Notă Whale: Crește prețul cu 50%.</span>";
+            else if (fanType === 'newbie') mText += " 🌱 <span class='text-glow-gold'>Notă Newbie: Ține prețul la 20-40 tokens.</span>";
+            document.getElementById('outMonetization').innerHTML = mText;
+            document.getElementById('aiOutput').classList.remove('hidden');
+        }
+
+        document.getElementById('glowForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = 'Se trimite...'; btn.disabled = true;
+            const data = { nume: document.getElementById('nume').value, telefon: document.getElementById('telefon').value, email: '', motivatie: document.getElementById('motivatie').value };
+            try {
+                const res = await fetch('/submit-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if ((await res.json()).success) {
+                    document.getElementById('glowForm').classList.add('hidden');
+                    document.getElementById('successMessage').classList.remove('hidden');
+                }
+            } catch (err) { alert('Eroare.'); btn.disabled = false; }
+        });
+    </script>
+</body>
+</html>

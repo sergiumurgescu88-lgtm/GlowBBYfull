@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmY5ZjQzIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIzIDE5YTIgMiAwIDAgMS0yIDJIM2EyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmg0bDItM2g2bDIgM2g0YTIgMiAwIDAgMSAyIDJ6Ij48L3BhdGg+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMyIgcj0iNCI+PC9jaXJjbGU+PC9zdmc+" type="image/svg+xml">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glowbby Media Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f0f0f; background-image: radial-gradient(at 0% 0%, rgba(255, 159, 67, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(255, 107, 53, 0.1) 0px, transparent 50%); color: #ffffff; font-family: 'Inter', system-ui, sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 159, 67, 0.2); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+        .glow-text { background: linear-gradient(to right, #ffb86c, #ff9f43); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .btn-primary { background: linear-gradient(135deg, #ffb86c 0%, #ff9f43 100%); color: #0a0a0a; font-weight: bold; transition: all 0.3s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 159, 67, 0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .loader { border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid #ff9f43; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        select { background-color: rgba(0,0,0,0.4); border: 1px solid #374151; color: white; }
+        select:focus { border-color: #ff9f43; outline: none; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 glow-text">🎨 Glowbby Media Studio</h1>
+            <p class="text-gray-400 text-lg max-w-2xl mx-auto">Control total asupra conținutului tău. Alege dimensiunea, calitatea și descrie scena perfectă.</p>
+        </header>
+
+        <div class="flex justify-center mb-8 gap-4">
+            <button onclick="switchTab('bg')" id="tab-bg" class="px-6 py-3 rounded-lg font-semibold transition bg-[#ff9f43] text-black">✨ Înlocuiește Fundal</button>
+            <button onclick="switchTab('gen')" id="tab-gen" class="px-6 py-3 rounded-lg font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">👗 Schimbă Outfit-ul (Păstrează Fața)</button>
+        </div>
+
+        <!-- Tab 1: Înlocuiește Fundal -->
+        <div id="content-bg" class="glass-card rounded-2xl p-6 md:p-8">
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">1. Încarcă Imaginea</label>
+                    <div class="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-[#ff9f43] transition cursor-pointer relative mb-4">
+                        <input type="file" id="bg-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImage(this, 'bg-preview')">
+                        <div id="bg-preview" class="hidden w-full h-48 object-contain rounded-lg mb-2"></div>
+                        <div id="bg-placeholder">
+                            <svg class="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <p class="text-gray-400">Click sau trage o imagine aici</p>
+                        </div>
+                    </div>
+                    
+                    <label class="block text-sm font-medium text-gray-300 mb-2">2. Configurații</label>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Dimensiune</label>
+                            <select id="bg-ratio" class="w-full rounded-lg p-2.5 text-sm">
+                                <option value="1:1">1:1 (Pătrat - Instagram)</option>
+                                <option value="16:9">16:9 (Landscape - YouTube)</option>
+                                <option value="9:16">9:16 (Portrait - TikTok/Reels)</option>
+                                <option value="4:3">4:3 (Clasic)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Calitate AI</label>
+                            <select id="bg-quality" class="w-full rounded-lg p-2.5 text-sm">
+                                <option value="flux-kontext">Pro (Rapid & Echilibrat)</option>
+                                <option value="flux-kontext">Max (Ultra Detaliat)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 mb-2">
+                        <label class="block text-sm font-medium text-gray-300">3. Descrie noul fundal (Prompt)</label>
+                        <span class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-bold">⚠️ DOAR ÎN ENGLEZĂ</span>
+                    </div>
+                    <textarea id="bg-prompt" class="w-full bg-black/40 border border-gray-700 rounded-lg p-3 text-white focus:border-[#ff9f43] focus:outline-none mb-4" rows="3" placeholder="Ex: professional model on a tropical beach at sunset, warm lighting, 8k photography, highly detailed">professional model on a tropical beach at sunset, warm lighting, 8k photography, highly detailed</textarea>
+                    
+                    <button onclick="processBg()" id="bg-btn" class="btn-primary w-full py-3 rounded-lg flex items-center justify-center gap-2"><span>✨ Înlocuiește Fundalul</span></button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">4. Rezultat</label>
+                    <div class="bg-black/40 rounded-xl h-80 flex items-center justify-center border border-gray-700 relative overflow-hidden">
+                        <img id="bg-result" class="hidden max-w-full max-h-full object-contain" />
+                        <div id="bg-loading" class="hidden absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
+                            <div class="loader"></div>
+                            <p class="text-sm text-gray-300">Se procesează... (15-30 secunde)</p>
+                        </div>
+                        <p id="bg-empty" class="text-gray-500">Rezultatul va apărea aici</p>
+                    </div>
+                    <a id="bg-download" class="hidden btn-primary w-full mt-4 py-3 rounded-lg text-center block" download="rezultat.jpg">⬇️ Descarcă Imaginea</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Generează Variații -->
+        <div id="content-gen" class="hidden glass-card rounded-2xl p-6 md:p-8">
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">1. Imaginea Sursă</label>
+                    <div class="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-[#ff9f43] transition cursor-pointer relative mb-4">
+                        <input type="file" id="gen-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImage(this, 'gen-preview')">
+                        <div id="gen-preview" class="hidden w-full h-48 object-contain rounded-lg mb-2"></div>
+                        <div id="gen-placeholder">
+                            <svg class="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <p class="text-gray-400">Încarcă imaginea de bază</p>
+                        </div>
+                    </div>
+                    
+                    <label class="block text-sm font-medium text-gray-300 mb-2">2. Configurații</label>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Dimensiune</label>
+                            <select id="gen-ratio" class="w-full rounded-lg p-2.5 text-sm">
+                                <option value="1:1">1:1 (Pătrat)</option>
+                                <option value="16:9">16:9 (Landscape)</option>
+                                <option value="9:16">9:16 (Portrait)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Calitate AI</label>
+                            <select id="gen-quality" class="w-full rounded-lg p-2.5 text-sm">
+                                <option value="flux-kontext">Pro (Rapid)</option>
+                                <option value="flux-kontext">Max (Ultra Detaliat)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="block text-sm font-medium text-gray-300 mb-2">3. Descriere (Prompt)</label>
+                    <textarea id="gen-prompt" class="w-full bg-black/40 border border-gray-700 rounded-lg p-3 text-white focus:border-[#ff9f43] focus:outline-none mb-4" rows="3">wearing an elegant red evening dress, maintaining the exact same face and body pose, 8k photography, highly detailed, masterpiece</textarea>
+                    <button onclick="processGen()" id="gen-btn" class="btn-primary w-full py-3 rounded-lg flex items-center justify-center gap-2"><span>Generează Variație</span></button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">4. Rezultat Generat</label>
+                    <div class="bg-black/40 rounded-xl h-80 flex items-center justify-center border border-gray-700 relative overflow-hidden">
+                        <img id="gen-result" class="hidden max-w-full max-h-full object-contain" />
+                        <div id="gen-loading" class="hidden absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
+                            <div class="loader"></div>
+                            <p class="text-sm text-gray-300">Se generează... (15-30 secunde)</p>
+                        </div>
+                        <p id="gen-empty" class="text-gray-500">Variația va apărea aici</p>
+                    </div>
+                    <a id="gen-download" class="hidden btn-primary w-full mt-4 py-3 rounded-lg text-center block" download="variatie.jpg">⬇️ Descarcă Variația</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function switchTab(tab) {
+            document.getElementById('content-bg').classList.add('hidden');
+            document.getElementById('content-gen').classList.add('hidden');
+            document.getElementById('tab-bg').className = "px-6 py-3 rounded-lg font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700";
+            document.getElementById('tab-gen').className = "px-6 py-3 rounded-lg font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700";
+            document.getElementById('content-' + tab).classList.remove('hidden');
+            document.getElementById('tab-' + tab).className = "px-6 py-3 rounded-lg font-semibold transition bg-[#ff9f43] text-black";
+        }
+        function previewImage(input, previewId) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(previewId);
+                    preview.innerHTML = '<img src="' + e.target.result + '" class="w-full h-full object-contain rounded-lg" />';
+                    preview.classList.remove('hidden');
+                    document.getElementById(previewId.replace('preview', 'placeholder')).classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+        async function processBg() {
+            const fileInput = document.getElementById('bg-input');
+            const prompt = document.getElementById('bg-prompt').value;
+            if (!fileInput.files[0]) return alert('Te rog să încarci o imagine!');
+            if (!prompt.trim()) return alert('Te rog să descrii noul fundal!');
+            
+            const btn = document.getElementById('bg-btn');
+            const loading = document.getElementById('bg-loading');
+            const resultImg = document.getElementById('bg-result');
+            const empty = document.getElementById('bg-empty');
+            const download = document.getElementById('bg-download');
+            
+            btn.disabled = true; btn.innerHTML = '<div class="loader"></div> Se procesează...';
+            loading.classList.remove('hidden'); empty.classList.add('hidden'); resultImg.classList.add('hidden'); download.classList.add('hidden');
+            
+            const formData = new FormData(); 
+            formData.append('image', fileInput.files[0]);
+            formData.append('prompt', prompt);
+            formData.append('aspect_ratio', document.getElementById('bg-ratio').value);
+            formData.append('quality', document.getElementById('bg-quality').value);
+            
+            try {
+                const response = await fetch('/api/replace-bg', { method: 'POST', body: formData });
+                const data = await response.json();
+                if(data.detail) throw new Error(data.detail);
+                resultImg.src = data.image; resultImg.classList.remove('hidden');
+                download.href = data.image; download.classList.remove('hidden');
+            } catch (err) { alert('Eroare: ' + err.message); }
+            finally { btn.disabled = false; btn.innerHTML = '<span>✨ Înlocuiește Fundalul</span>'; loading.classList.add('hidden'); }
+        }
+        async function processGen() {
+            const fileInput = document.getElementById('gen-input');
+            if (!fileInput.files[0]) return alert('Te rog să încarci o imagine!');
+            const btn = document.getElementById('gen-btn');
+            const loading = document.getElementById('gen-loading');
+            const resultImg = document.getElementById('gen-result');
+            const empty = document.getElementById('gen-empty');
+            const download = document.getElementById('gen-download');
+            
+            btn.disabled = true; btn.innerHTML = '<div class="loader"></div> Se generează...';
+            loading.classList.remove('hidden'); empty.classList.add('hidden'); resultImg.classList.add('hidden'); download.classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('prompt', document.getElementById('gen-prompt').value);
+            formData.append('aspect_ratio', document.getElementById('gen-ratio').value);
+            formData.append('quality', document.getElementById('gen-quality').value);
+            
+            try {
+                const response = await fetch('/api/generate', { method: 'POST', body: formData });
+                const data = await response.json();
+                if(data.detail) throw new Error(data.detail);
+                resultImg.src = data.image; resultImg.classList.remove('hidden');
+                download.href = data.image; download.classList.remove('hidden');
+            } catch (err) { alert('Eroare: ' + err.message); }
+            finally { btn.disabled = false; btn.innerHTML = '<span>Generează Variație</span>'; loading.classList.add('hidden'); }
+        }
+    </script>
+</body>
+</html>

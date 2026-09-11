@@ -1,0 +1,150 @@
+import os
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
+from dotenv import load_dotenv
+from database import KnowledgeBase
+
+load_dotenv()
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+kb = KnowledgeBase()
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    default_headers={
+        'HTTP-Referer': 'https://glowbby.online',
+        'X-Title': 'GlowBBY Chat Analyzer',
+    }
+)
+
+def build_dynamic_prompt(chat_log, member_context=None):
+    """Construiește System Prompt dinamic bazat pe context"""
+
+    language = kb.detect_language(chat_log)
+    successful_examples = kb.get_successful_examples(language, limit=3)
+
+    prompt = f"""You are an elite OnlyFans Marketing Specialist with 20 years of experience.
+
+## PERSONA MODELULUI:
+- Stil: Jucăuș, teasing, creează tensiune sexuală subtilă
+- Reguli:
+  * Mesaje scurte (1-2 propoziții max)
+  * NU sări la monetizare direct
+  * Folosește hook vizual (sugerează poze/video)
+  * Reciprocă complimentele specific
+  * Creează curiozitate, nu cerere directă
+  * Adaptare culturală (ex: italian = complimente directe, spaniol = pasiune)
+
+## CONTEXT MEMBRU:
+{f'- Tip: {member_context["member_type"]}' if member_context else '- Tip: Necunoscut (primul mesaj)'}
+{f'- Limbă: {member_context["preferred_language"]}' if member_context else f'- Limbă: {language}'}
+{f'- Strategie care a funcționat: {member_context["successful_strategies"]}' if member_context and member_context["successful_strategies"] else '- Strategie: Testează teasing + curiozitate'}
+
+## EXEMPLE DE SUCCES (mesaje care au generat vânzări):
+"""
+
+    if successful_examples:
+        for i, ex in enumerate(successful_examples, 1):
+            prompt += f"{i}. \"{ex['text']}\" (scor: {ex['effectiveness_score']}/100, conversie: {ex['conversion_result']})\n"
+    else:
+        prompt += "Nu există exemple încă. Folosește psihologie generală de vânzare.\n"
+
+    prompt += f"""
+## CONVERSAȚIA CURENTĂ ({language.upper()}):
+{chat_log}
+
+## OBIECTIV:
+- Creează tensiune sexuală subtilă
+- Lasă ușa deschisă pentru el să ceară mai mult
+- Sugerează conținut premium FĂRĂ a cere direct
+- Mesaj scurt, punchy, specific contextului
+
+## FORMAT OUTPUT (în română pentru analiză, engleză/limba membrului pentru mesaje):
+
+🧠 DIAGNOZA:
+- Stadiul conversației (flirt/tensiune/cerere)
+- Ce a funcționat până acum
+- Ce NU a funcționat
+- Momentul psihologic actual
+
+🎯 STRATEGIA:
+- Trigger psihologic (Ego/FOMO/Curiozitate/GFE)
+- De ce va funcționa
+
+💬 MESAJELE (2 variante în limba membrului):
+1. [Variantă teasing + curiozitate]
+2. [Variantă reciprocă + hook vizual]
+
+💸 RUTA DE MONETIZARE:
+- Când să introduci PPV-ul (după X mesaje)
+- Cum să faci upsell natural
+- Preț sugerat bazat pe tipul membrului
+"""
+
+    return prompt
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("index.html", "r") as f:
+        return f.read()
+
+@app.post("/api/generate")
+async def generate(request: Request):
+    data = await request.json()
+    chat_log = data.get("chat_log", "")
+    member_username = data.get("member_username", "")
+
+    if not chat_log:
+        return JSONResponse(content={"error": "No chat log provided"}, status_code=400)
+
+    # Găsim/creăm membrul (asta lipsea complet înainte)
+    member_id = kb.get_or_create_member(member_username) if member_username else None
+    member_context = kb.get_member_context(member_username) if member_username else None
+
+    conv_id = kb.add_conversation(member_id, "onlyfans", chat_log)
+
+    system_prompt = build_dynamic_prompt(chat_log, member_context)
+
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Analizează conversația și generează strategia optimă."}
+            ],
+            temperature=0.7
+        )
+
+        result = response.choices[0].message.content
+
+        # Salvăm mesajul AI ca să aibă ID real pentru feedback ulterior
+        message_id = kb.add_message(conv_id, "ai", result)
+
+        print(f"✅ Conversație {conv_id} (mesaj {message_id}) analizată pentru {member_username or 'unknown'}")
+
+        return JSONResponse(content={
+            "result": result,
+            "conversation_id": conv_id,
+            "message_id": message_id
+        })
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.post("/api/feedback")
+async def feedback(request: Request):
+    """Primește feedback după ce vezi rezultatul real"""
+    data = await request.json()
+    conversation_id = data.get("conversation_id")
+    message_id = data.get("message_id")
+    score = data.get("score")  # 0-100
+    conversion_result = data.get("conversion_result")  # "ppv_20", "custom_100", "tip_5", "no_sale"
+
+    if not message_id:
+        return JSONResponse(content={"error": "message_id lipsă — nu se poate lega feedback-ul de un mesaj"}, status_code=400)
+
+    kb.update_member_score(conversation_id, message_id, score, conversion_result)
+
+    return JSONResponse(content={"status": "success"})

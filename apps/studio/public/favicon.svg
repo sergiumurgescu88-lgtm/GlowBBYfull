@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="botGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Cerc de fundal -->
+  <circle cx="50" cy="50" r="45" fill="url(#botGrad)"/>
+  <!-- Cap de bot stilizat -->
+  <rect x="25" y="30" width="50" height="40" rx="10" fill="white"/>
+  <!-- Ochii botului -->
+  <circle cx="38" cy="48" r="5" fill="#3b82f6"/>
+  <circle cx="62" cy="48" r="5" fill="#3b82f6"/>
+  <!-- Antena cu punct verde (online/activ) -->
+  <line x1="50" y1="30" x2="50" y2="20" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="50" cy="18" r="4" fill="#10b981"/>
+  <!-- Unde de semnal (trafic) -->
+  <path d="M 75 45 Q 85 50 75 55" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 80 40 Q 95 50 80 60" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

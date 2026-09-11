@@ -1,0 +1,4 @@
+--- START IMAGE REQUEST ---
+Prompt trimis la AI: Professional business suit, navy blue blazer with white shirt, corporate portrait, clean background, fully clothed, professional safe for work studio portrait, maintaining the exact same facial features, hair, and body pose, highly detailed, 8k resolution
+✅ Upload OK. URL: https://tempfile.redpandaai.co/kieai/37315/glowbby-temp/input.jpg
+✅ Task ID: 26774eeeb33046c8c74830f432c798a1

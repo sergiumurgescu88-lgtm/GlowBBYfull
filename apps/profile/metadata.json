@@ -1,0 +1,6 @@
+{
+  "name": "GLOW Profile - Glow Models Studio",
+  "description": "Transformă-ți personalitatea în independență financiară cu ajutorul Inteligenței Artificiale. 100% Confidențialitate Garantată la Glow Models.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

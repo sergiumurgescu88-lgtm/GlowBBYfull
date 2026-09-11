@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glowbby Media Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #8b5cf6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-active { background-color: #8b5cf6; color: white; }
+        .tab-inactive { background-color: #1f2937; color: #9ca3af; }
+        .tab-inactive:hover { background-color: #374151; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex overflow-hidden">
+    <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+        <div class="p-6 border-b border-gray-700">
+            <h1 class="text-2xl font-bold text-purple-400">Glowbby Studio</h1>
+            <p class="text-xs text-gray-400 mt-1">Platformă AI pentru Creatori</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="switchTab('outfit')" id="btn-outfit" class="w-full text-left px-4 py-3 rounded-lg tab-active transition flex items-center gap-3">👗 Outfit Change</button>
+            <button onclick="switchTab('background')" id="btn-background" class="w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🌅 Fundal</button>
+            <button onclick="switchTab('video')" id="btn-video" class="w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🎬 Video Motion</button>
+        </nav>
+    </aside>
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+            <h2 id="page-title" class="text-xl font-semibold">Outfit Change</h2>
+            <div class="flex items-center gap-4">
+                <label class="cursor-pointer bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    📷 Încarcă Master Image
+                    <input type="file" id="master-image" accept="image/*" class="hidden" onchange="previewImage(this)">
+                </label>
+                <img id="master-preview" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500 hidden">
+            </div>
+        </header>
+        <div class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Prompt / Descriere</label>
+                    <textarea id="prompt" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ex: Modelul poartă o rochie elegantă de seară, iluminare cinematică..."></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Aspect Ratio</label>
+                        <select id="aspect-ratio" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none">
+                            <option value="1:1">1:1 (Pătrat)</option>
+                            <option value="16:9">16:9 (Landscape)</option>
+                            <option value="9:16">9:16 (Portrait)</option>
+                        </select>
+                    </div>
+                    <div id="video-controls" class="hidden">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Durată Video</label>
+                        <select id="video-duration" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none">
+                            <option value="5">5 secunde</option>
+                            <option value="10">10 secunde</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="generateContent()" id="generate-btn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 rounded-lg transition flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span>✨ Generează</span>
+                </button>
+                <div id="progress-container" class="hidden">
+                    <div class="flex justify-between text-sm text-gray-400 mb-1">
+                        <span id="progress-text">Se procesează...</span>
+                        <span id="progress-time">0s</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-purple-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 flex flex-col items-center justify-center min-h-[400px] relative">
+                <div id="result-placeholder" class="text-gray-500 text-center">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <p>Rezultatul va apărea aici</p>
+                </div>
+                <div id="result-content" class="hidden w-full h-full flex flex-col items-center">
+                    <img id="result-image" class="max-w-full max-h-[500px] rounded-lg shadow-2xl hidden">
+                    <video id="result-video" class="max-w-full max-h-[500px] rounded-lg shadow-2xl hidden" controls></video>
+                    <a id="download-btn" href="#" download="glowbby-result" class="mt-4 bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">⬇️ Descarcă Rezultatul</a>
+                </div>
+                <div id="loader" class="hidden absolute inset-0 bg-gray-800 bg-opacity-90 flex flex-col items-center justify-center rounded-xl">
+                    <div class="loader mb-4"></div>
+                    <p class="text-purple-400 font-medium">AI-ul lucrează...</p>
+                    <p class="text-xs text-gray-400 mt-2">Acest proces poate dura până la 2-3 minute pentru video.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        let currentTab = 'outfit';
+        let startTime = 0;
+        let progressInterval;
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('tab-inactive');
+            });
+            document.getElementById(`btn-${tab}`).classList.remove('tab-inactive');
+            document.getElementById(`btn-${tab}`).classList.add('tab-active');
+
+            const titles = { 'outfit': 'Outfit Change', 'background': 'Schimbare Fundal', 'video': 'Video Motion' };
+            document.getElementById('page-title').textContent = titles[tab];
+            
+            const videoControls = document.getElementById('video-controls');
+            if (tab === 'video') {
+                videoControls.classList.remove('hidden');
+                document.getElementById('prompt').placeholder = "Ex: Modelul zâmbește ușor, vântul îi mișcă părul, mișcare cinematică lentă...";
+            } else {
+                videoControls.classList.add('hidden');
+                document.getElementById('prompt').placeholder = "Ex: Modelul poartă o rochie elegantă de seară, iluminare cinematică...";
+            }
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('master-preview');
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function startProgress() {
+            startTime = Date.now();
+            document.getElementById('progress-container').classList.remove('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+            progressInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('progress-time').textContent = elapsed + 's';
+                const progress = Math.min((elapsed / (currentTab === 'video' ? 120 : 40)) * 90, 90);
+                document.getElementById('progress-bar').style.width = progress + '%';
+            }, 1000);
+        }
+
+        function stopProgress() {
+            clearInterval(progressInterval);
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('progress-bar').style.width = '100%';
+        }
+
+        async function generateContent() {
+            const fileInput = document.getElementById('master-image');
+            const prompt = document.getElementById('prompt').value;
+            const aspectRatio = document.getElementById('aspect-ratio').value;
+            
+            if (!fileInput.files[0]) { alert('Te rog să încarci mai întâi o Master Image!'); return; }
+            if (!prompt) { alert('Te rog să introduci un prompt!'); return; }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('prompt', prompt);
+            formData.append('aspect_ratio', aspectRatio);
+
+            let endpoint = '/api/generate';
+            if (currentTab === 'outfit') endpoint = '/api/replace-bg';
+            else if (currentTab === 'video') {
+                endpoint = '/api/generate-video';
+                formData.append('duration', document.getElementById('video-duration').value);
+            }
+
+            document.getElementById('result-placeholder').classList.add('hidden');
+            document.getElementById('result-content').classList.add('hidden');
+            startProgress();
+
+            try {
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.detail || 'Eroare la generare');
+
+                stopProgress();
+                document.getElementById('result-content').classList.remove('hidden');
+
+                if (currentTab === 'video' && data.video_url) {
+                    const videoEl = document.getElementById('result-video');
+                    videoEl.src = data.video_url;
+                    videoEl.classList.remove('hidden');
+                    document.getElementById('result-image').classList.add('hidden');
+                    document.getElementById('download-btn').href = data.video_url;
+                    document.getElementById('download-btn').download = 'glowbby-video.mp4';
+                } else if (data.image) {
+                    const imgEl = document.getElementById('result-image');
+                    imgEl.src = data.image;
+                    imgEl.classList.remove('hidden');
+                    document.getElementById('result-video').classList.add('hidden');
+                    document.getElementById('download-btn').href = data.image;
+                    document.getElementById('download-btn').download = 'glowbby-image.jpg';
+                }
+            } catch (error) {
+                stopProgress();
+                alert('Eroare: ' + error.message);
+                document.getElementById('result-placeholder').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "Glow Studio",
+  "description": "Platformă premium de creștere a traficului și automatizare pentru Chaturbate & platforme cam, cu plăți integrate și panou complet de administrare.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

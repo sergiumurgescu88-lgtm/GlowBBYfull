@@ -1,0 +1,145 @@
+import sqlite3
+import json
+from datetime import datetime
+
+class KnowledgeBase:
+    def __init__(self, db_path='knowledge.db'):
+        self.conn = sqlite3.connect(db_path)
+        self.conn.row_factory = sqlite3.Row
+        self.create_tables()
+    
+    def create_tables(self):
+        cursor = self.conn.cursor()
+        
+        # Conversații
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                member_id INTEGER,
+                platform TEXT,
+                raw_text TEXT,
+                language TEXT,
+                context_tags TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Membri
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                platform TEXT,
+                member_type TEXT,
+                spending_history REAL DEFAULT 0,
+                preferred_language TEXT,
+                successful_strategies TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Mesaje individuale
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER,
+                sender TEXT,
+                text TEXT,
+                timestamp TIMESTAMP,
+                conversion_result TEXT,
+                effectiveness_score INTEGER DEFAULT 0,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+            )
+        ''')
+        
+        # Persona model
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS personas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                style TEXT,
+                voice_examples TEXT,
+                pricing_strategy TEXT,
+                cultural_notes TEXT,
+                rules TEXT
+            )
+        ''')
+        
+        self.conn.commit()
+    
+    def add_conversation(self, member_username, platform, raw_text, language='auto'):
+        cursor = self.conn.cursor()
+        
+        # Detectăm limba
+        if language == 'auto':
+            language = self.detect_language(raw_text)
+        
+        # Adăugăm conversația
+        cursor.execute('''
+            INSERT INTO conversations (member_id, platform, raw_text, language)
+            VALUES ((SELECT id FROM members WHERE username = ?), ?, ?, ?)
+        ''', (member_username, platform, raw_text, language))
+        
+        conv_id = cursor.lastrowid
+        self.conn.commit()
+        return conv_id
+    
+    def add_message(self, conversation_id, sender, text, conversion_result=None, score=0):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO messages (conversation_id, sender, text, conversion_result, effectiveness_score)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (conversation_id, sender, text, conversion_result, score))
+        self.conn.commit()
+    
+    def get_successful_examples(self, context_tags, limit=3):
+        """Returnează exemple de mesaje de succes similare"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT m.text, m.effectiveness_score, m.conversion_result
+            FROM messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE m.effectiveness_score > 70
+            AND c.context_tags LIKE ?
+            ORDER BY m.effectiveness_score DESC
+            LIMIT ?
+        ''', (f'%{context_tags}%', limit))
+        return cursor.fetchall()
+    
+    def detect_language(self, text):
+        """Detectează limba conversației"""
+        italian_words = ['ciao', 'bella', 'tesoro', 'amore', 'sei', 'tu', 'io', 'che', 'molto']
+        spanish_words = ['hola', 'bonita', 'amor', 'eres', 'tu', 'yo', 'que', 'mucho']
+        
+        text_lower = text.lower()
+        it_count = sum(1 for word in italian_words if word in text_lower)
+        es_count = sum(1 for word in spanish_words if word in text_lower)
+        
+        if it_count > es_count:
+            return 'italian'
+        elif es_count > it_count:
+            return 'spanish'
+        return 'english'
+    
+    def get_member_context(self, username):
+        """Returnează contextul complet al unui membru"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM members WHERE username = ?
+        ''', (username,))
+        return cursor.fetchone()
+    
+    def update_member_score(self, username, conversation_id, message_id, score, conversion_result):
+        """Actualizează scorul unui mesaj după ce vezi rezultatul"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE messages 
+            SET effectiveness_score = ?, conversion_result = ?
+            WHERE id = ?
+        ''', (score, conversion_result, message_id))
+        self.conn.commit()
+
+# Test
+kb = KnowledgeBase()
+print("✅ Baza de date creată: knowledge.db")

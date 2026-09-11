@@ -1,0 +1,991 @@
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const Database = require('better-sqlite3');
+const path = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { OpenAI } = require('openai');
+const multer = require('multer');
+const XLSX = require('xlsx');
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'glowbby_secret_2026';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+
+console.log('🚀 Pornire Glowbby API...');
+
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: OPENAI_API_KEY,
+  defaultHeaders: {
+    "HTTP-Referer": "https://glowbby.online",
+    "X-Title": "Glowbby Assistant",
+  },
+});
+
+const db = new Database(path.join(__dirname, 'glowbby.db'));
+
+// ═══════════════════════════════════════════
+// HELPER FUNCTIONS - NUME UNICE CARE NU POT CONFLICTA
+// ═══════════════════════════════════════════
+
+function g_s(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return isNaN(val) ? null : String(val);
+  if (typeof val === 'boolean') return val ? '1' : '0';
+  return String(val);
+}
+
+function g_n(val) {
+  if (val === null || val === undefined) return 0;
+  const s = String(val).replace(/[^0-9.-]/g, '');
+  if (!s) return 0;
+  const n = Number.parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function g_i(val) {
+  if (val === null || val === undefined) return 0;
+  const s = String(val).replace(/[^0-9-]/g, '');
+  if (!s) return 0;
+  const n = Number.parseInt(s, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ═══════════════════════════════════════════
+// CREATE ALL TABLES
+// ═══════════════════════════════════════════
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  );
+  CREATE TABLE IF NOT EXISTS members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    platform TEXT NOT NULL,
+    member_username TEXT NOT NULL,
+    notes TEXT,
+    last_seen INTEGER,
+    total_messages INTEGER DEFAULT 0,
+    UNIQUE(user_id, platform, member_username)
+  );
+  CREATE TABLE IF NOT EXISTS quick_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    text TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    platform TEXT,
+    status TEXT DEFAULT 'active',
+    trainer TEXT,
+    notes TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  );
+  CREATE TABLE IF NOT EXISTS model_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    tokens REAL DEFAULT 0,
+    hours REAL DEFAULT 0,
+    tips REAL DEFAULT 0,
+    usd REAL DEFAULT 0,
+    session_count INTEGER DEFAULT 0,
+    UNIQUE(model_id, date)
+  );
+  CREATE TABLE IF NOT EXISTS model_members (
+    model_name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    member TEXT NOT NULL,
+    spend_usd REAL DEFAULT 0,
+    tips INTEGER DEFAULT 0,
+    active_days INTEGER DEFAULT 0,
+    repeat TEXT,
+    last_date TEXT,
+    rank_in_site INTEGER,
+    PRIMARY KEY (model_name, platform, member)
+  );
+  CREATE TABLE IF NOT EXISTS daily_tips (
+    model_name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    date TEXT NOT NULL,
+    tip_income_usd REAL DEFAULT 0,
+    tips INTEGER DEFAULT 0,
+    unique_tippers INTEGER DEFAULT 0,
+    PRIMARY KEY (model_name, platform, date)
+  );
+  CREATE TABLE IF NOT EXISTS hourly (
+    model_name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    hour TEXT NOT NULL,
+    exposure_h REAL DEFAULT 0,
+    tip_income_usd REAL DEFAULT 0,
+    tip_per_h REAL DEFAULT 0,
+    tips INTEGER DEFAULT 0,
+    unique_tippers INTEGER DEFAULT 0,
+    PRIMARY KEY (model_name, platform, hour)
+  );
+  CREATE TABLE IF NOT EXISTS model_site (
+    model_name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    income_usd REAL, hours REAL, usd_per_h REAL, sessions INTEGER,
+    tips INTEGER, unique_tippers INTEGER, repeat INTEGER, repeat_rate REAL,
+    avg_spend REAL, median_spend REAL, top1_share REAL, top5_share REAL, top10_share REAL,
+    zero_segments REAL, zero_hours REAL, active_days INTEGER,
+    best_hour TEXT, best_tip_per_h REAL, weak_hour TEXT, weak_tip_per_h REAL, signal TEXT,
+    PRIMARY KEY (model_name, platform)
+  );
+  CREATE TABLE IF NOT EXISTS spenders (
+    model_name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    type TEXT NOT NULL,
+    rank INTEGER,
+    member TEXT NOT NULL,
+    spend_usd REAL DEFAULT 0,
+    tips INTEGER DEFAULT 0,
+    active_days INTEGER DEFAULT 0,
+    last_date TEXT,
+    PRIMARY KEY (model_name, platform, scope, type, member)
+  );
+`);
+
+console.log('✅ Toate tabelele create');
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token lipsă' });
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Token invalid' });
+    req.user = user;
+    next();
+  });
+};
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+app.post('/v1/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Date incomplete' });
+  const hash = await bcrypt.hash(password, 10);
+  try {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, hash);
+    res.json({ ok: true, message: 'Cont creat' });
+  } catch (err) {
+    res.status(400).json({ error: 'Username există deja' });
+  }
+});
+
+app.post('/v1/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    return res.status(401).json({ error: 'Credențiale incorecte' });
+  }
+  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ token, user: { id: user.id, username: user.username } });
+});
+
+// ═══════════════════════════════════════════
+// AI SUGGEST
+// ═══════════════════════════════════════════
+app.post('/v1/suggest', authenticateToken, async (req, res) => {
+  const { context, member_username, platform } = req.body;
+  if (!OPENAI_API_KEY) {
+    return res.json({ suggestions: ["Bună! 😊", "Mulțumesc! 💕", "Povestește-mi! 😏"] });
+  }
+  try {
+    const conversationText = context.map(m => `${m.sender}: ${m.text}`).join('\n');
+    const prompt = `Ești asistent AI videochat pe ${platform}. Stil: prietenos, scurt. Context: ${conversationText} Membru: ${member_username}. Răspunde JSON: {"suggestions": ["r1", "r2", "r3"]}`;
+    const response = await openai.chat.completions.create({
+      model: "meta-llama/llama-3.1-8b-instruct",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    const result = JSON.parse(response.choices[0].message.content);
+    res.json({ suggestions: result.suggestions || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Eroare AI' });
+  }
+});
+
+// ═══════════════════════════════════════════
+// MEMBERS & QUICK REPLIES
+// ═══════════════════════════════════════════
+app.get('/v1/members', authenticateToken, (req, res) => {
+  res.json(db.prepare('SELECT member_username, platform, notes, last_seen FROM members WHERE user_id = ? ORDER BY last_seen DESC').all(req.user.id));
+});
+
+app.post('/v1/members/note', authenticateToken, (req, res) => {
+  const { platform, member_username, note } = req.body;
+  db.prepare(`INSERT INTO members (user_id, platform, member_username, notes, last_seen, total_messages) VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT(user_id, platform, member_username) DO UPDATE SET notes = excluded.notes, last_seen = excluded.last_seen`).run(req.user.id, platform, member_username, note, Math.floor(Date.now() / 1000));
+  res.json({ ok: true });
+});
+
+app.get('/v1/quick-replies', authenticateToken, (req, res) => {
+  res.json(db.prepare('SELECT id, label, text FROM quick_replies WHERE user_id = ?').all(req.user.id));
+});
+
+app.post('/v1/quick-replies', authenticateToken, (req, res) => {
+  db.prepare('INSERT INTO quick_replies (user_id, label, text) VALUES (?, ?, ?)').run(req.user.id, req.body.label, req.body.text);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════
+// IMPORT EXCEL - CU g_s, g_n, g_i
+// ═══════════════════════════════════════════
+function firstDataRow(rows) {
+  return rows.findIndex(r => r && r[0] === 'Model');
+}
+
+function sheetToObjects(ws) {
+  if (!ws) return [];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  const headerIdx = firstDataRow(rows);
+  if (headerIdx === -1) return [];
+  const headers = rows[headerIdx];
+  return rows.slice(headerIdx + 1)
+    .filter(r => r && r[0])
+    .map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
+}
+
+function toDateStr(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v);
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) {
+    const year = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${year}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+app.post('/v1/models/import', authenticateToken, upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Niciun fișier' });
+
+  try {
+    console.log('📥 Import:', req.file.originalname);
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    console.log('📊 Sheet-uri:', workbook.SheetNames);
+
+    const getOrCreateModel = db.prepare(`INSERT INTO models (name) VALUES (?) ON CONFLICT(name) DO NOTHING`);
+    const findModelId = db.prepare(`SELECT id FROM models WHERE name = ?`);
+
+    const tx = db.transaction(() => {
+      // Upsert mode: rândurile existente se actualizează prin ON CONFLICT, nimic nu se șterge
+
+      if (workbook.SheetNames.includes('Raw Sessions')) {
+        console.log('  📄 Raw Sessions...');
+        const agg = new Map();
+        for (const row of sheetToObjects(workbook.Sheets['Raw Sessions'])) {
+          const modelName = g_s(row.Model);
+          if (!modelName) continue;
+          getOrCreateModel.run(modelName);
+          const date = toDateStr(row.Start);
+          if (!date) continue;
+          const key = `${modelName}|${date}`;
+          const cur = agg.get(key) || { model: modelName, date, tokens: 0, hours: 0, tips: 0, usd: 0, count: 0 };
+          cur.tokens += g_n(row.Tokens);
+          cur.hours += g_n(row['Duration h']);
+          cur.tips += g_i(row.Tips);
+          cur.usd += g_n(row.USD);
+          cur.count += 1;
+          agg.set(key, cur);
+        }
+        const insSess = db.prepare(`INSERT INTO model_sessions (model_id, date, tokens, hours, tips, usd, session_count) VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(model_id, date) DO UPDATE SET
+            tokens=excluded.tokens, hours=excluded.hours, tips=excluded.tips,
+            usd=excluded.usd, session_count=excluded.session_count`);
+        for (const v of agg.values()) {
+          const model = findModelId.get(v.model);
+          if (model) insSess.run(model.id, v.date, v.tokens, v.hours, v.tips, v.usd, v.count);
+        }
+        console.log(`    ✅ ${agg.size} zile-model`);
+      }
+
+      if (workbook.SheetNames.includes('Members')) {
+        console.log('  📄 Members...');
+        const insMem = db.prepare(`INSERT INTO model_members (model_name, platform, member, spend_usd, tips, active_days, repeat, last_date, rank_in_site) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(model_name, platform, member) DO UPDATE SET
+            spend_usd=excluded.spend_usd, tips=excluded.tips, active_days=excluded.active_days,
+            repeat=excluded.repeat, last_date=excluded.last_date, rank_in_site=excluded.rank_in_site`);
+        let count = 0;
+        for (const row of sheetToObjects(workbook.Sheets['Members'])) {
+          const modelName = g_s(row.Model);
+          const platform = g_s(row.Platform) || 'unknown';
+          const member = g_s(row.Member);
+          if (!modelName || !member) continue;
+          insMem.run(
+            modelName, platform, member,
+            g_n(row['Spend $']), g_i(row.Tips), g_i(row['Active Days']),
+            g_s(row['Repeat?'] || row.Repeat),
+            toDateStr(row['Last Date']),
+            g_i(row['Rank in Site']) || null
+          );
+          count++;
+        }
+        console.log(`    ✅ ${count} membri`);
+      }
+
+      if (workbook.SheetNames.includes('Daily')) {
+        console.log('  📄 Daily...');
+        const insDay = db.prepare(`INSERT INTO daily_tips (model_name, platform, date, tip_income_usd, tips, unique_tippers) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(model_name, platform, date) DO UPDATE SET
+            tip_income_usd=excluded.tip_income_usd, tips=excluded.tips, unique_tippers=excluded.unique_tippers`);
+        let count = 0;
+        for (const row of sheetToObjects(workbook.Sheets['Daily'])) {
+          const modelName = g_s(row.Model);
+          const platform = g_s(row.Platform) || 'unknown';
+          const date = toDateStr(row.Date);
+          if (!modelName || !date) continue;
+          insDay.run(modelName, platform, date, g_n(row['Tip Income $']), g_i(row.Tips), g_i(row['Unique Tippers']));
+          count++;
+        }
+        console.log(`    ✅ ${count} zile`);
+      }
+
+      if (workbook.SheetNames.includes('Hourly')) {
+        console.log('  📄 Hourly...');
+        const insHr = db.prepare(`INSERT INTO hourly (model_name, platform, hour, exposure_h, tip_income_usd, tip_per_h, tips, unique_tippers) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(model_name, platform, hour) DO UPDATE SET
+            exposure_h=excluded.exposure_h, tip_income_usd=excluded.tip_income_usd,
+            tip_per_h=excluded.tip_per_h, tips=excluded.tips, unique_tippers=excluded.unique_tippers`);
+        let count = 0;
+        for (const row of sheetToObjects(workbook.Sheets['Hourly'])) {
+          const modelName = g_s(row.Model);
+          const platform = g_s(row.Platform) || 'unknown';
+          const hour = g_s(row.Hour) || '0';
+          if (!modelName) continue;
+          insHr.run(modelName, platform, hour, g_n(row['Exposure h']), g_n(row['Tip Income $']), g_n(row['Tip $/h']), g_i(row.Tips), g_i(row['Unique Tippers']));
+          count++;
+        }
+        console.log(`    ✅ ${count} ore`);
+      }
+
+      if (workbook.SheetNames.includes('Model-Site')) {
+        console.log('  📄 Model-Site...');
+        const insMS = db.prepare(`INSERT INTO model_site (model_name, platform, income_usd, hours, usd_per_h, sessions, tips, unique_tippers, repeat, repeat_rate, avg_spend, median_spend, top1_share, top5_share, top10_share, zero_segments, zero_hours, active_days, best_hour, best_tip_per_h, weak_hour, weak_tip_per_h, signal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(model_name, platform) DO UPDATE SET
+            income_usd=excluded.income_usd, hours=excluded.hours, usd_per_h=excluded.usd_per_h,
+            sessions=excluded.sessions, tips=excluded.tips, unique_tippers=excluded.unique_tippers,
+            repeat=excluded.repeat, repeat_rate=excluded.repeat_rate, avg_spend=excluded.avg_spend,
+            median_spend=excluded.median_spend, top1_share=excluded.top1_share, top5_share=excluded.top5_share,
+            top10_share=excluded.top10_share, zero_segments=excluded.zero_segments, zero_hours=excluded.zero_hours,
+            active_days=excluded.active_days, best_hour=excluded.best_hour, best_tip_per_h=excluded.best_tip_per_h,
+            weak_hour=excluded.weak_hour, weak_tip_per_h=excluded.weak_tip_per_h, signal=excluded.signal`);
+        let count = 0;
+        for (const row of sheetToObjects(workbook.Sheets['Model-Site'])) {
+          const modelName = g_s(row.Model);
+          const platform = g_s(row.Platform) || 'unknown';
+          if (!modelName) continue;
+          insMS.run(
+            modelName, platform,
+            g_n(row['Income $']), g_n(row.Hours), g_n(row['$/h']),
+            g_i(row.Sessions), g_i(row.Tips), g_i(row['Unique Tippers']),
+            g_n(row.Repeat), g_n(row['Repeat Rate']),
+            g_n(row['Avg Spend']), g_n(row['Median Spend']),
+            g_n(row['Top1 Share']), g_n(row['Top5 Share']), g_n(row['Top10 Share']),
+            g_n(row['Zero Segments']), g_n(row['Zero Hours']),
+            g_i(row['Active Days']),
+            g_s(row['Best Hour']), g_n(row['Best Tip $/h']),
+            g_s(row['Weak Hour']), g_n(row['Weak Tip $/h']),
+            g_s(row.Signal)
+          );
+          count++;
+        }
+        console.log(`    ✅ ${count} model-site`);
+      }
+
+      const spenderSheets = [
+        ['ALL-SITE REGULARS', 'all-site', 'regular'],
+        ['ALL-SITE ONE-DAY', 'all-site', 'one-day'],
+        ['CB REGULARS', 'cb', 'regular'],
+        ['CB ONE-DAY', 'cb', 'one-day'],
+      ];
+      const insSp = db.prepare(`INSERT INTO spenders (model_name, platform, scope, type, rank, member, spend_usd, tips, active_days, last_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(model_name, platform, scope, type, member) DO UPDATE SET
+          rank=excluded.rank, spend_usd=excluded.spend_usd, tips=excluded.tips,
+          active_days=excluded.active_days, last_date=excluded.last_date`);
+      for (const [sheetName, scope, type] of spenderSheets) {
+        if (!workbook.SheetNames.includes(sheetName)) continue;
+        console.log(`  📄 ${sheetName}...`);
+        let count = 0;
+        for (const row of sheetToObjects(workbook.Sheets[sheetName])) {
+          const modelName = g_s(row.Model);
+          const platform = g_s(row.Platform) || 'Chaturbate';
+          const member = g_s(row.Member);
+          if (!modelName || !member) continue;
+          insSp.run(
+            modelName, platform, scope, type,
+            g_i(row.Rank || row['Rank in Site']) || null,
+            member,
+            g_n(row['Spend $']), g_i(row.Tips), g_i(row['Active Days']),
+            toDateStr(row['Last Date'])
+          );
+          count++;
+        }
+        console.log(`    ✅ ${count} spenders`);
+      }
+    });
+
+    tx();
+
+    const stats = {
+      model_sessions: db.prepare('SELECT COUNT(*) as c FROM model_sessions').get().c,
+      model_members: db.prepare('SELECT COUNT(*) as c FROM model_members').get().c,
+      daily_tips: db.prepare('SELECT COUNT(*) as c FROM daily_tips').get().c,
+      hourly: db.prepare('SELECT COUNT(*) as c FROM hourly').get().c,
+      model_site: db.prepare('SELECT COUNT(*) as c FROM model_site').get().c,
+      spenders: db.prepare('SELECT COUNT(*) as c FROM spenders').get().c,
+      models: db.prepare('SELECT COUNT(*) as c FROM models').get().c
+    };
+
+    console.log('✅ Import complet:', stats);
+    res.json({ success: true, sheets: workbook.SheetNames, stats });
+
+  } catch (err) {
+    console.error('❌ Eroare import:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════
+// MODELS LIST & DETAIL
+// ═══════════════════════════════════════════
+app.get('/v1/models', authenticateToken, (req, res) => {
+  const models = db.prepare(`
+    SELECT m.id, m.name, m.platform, m.status, m.trainer, m.notes,
+      COALESCE(SUM(s.tokens), 0) as total_tokens,
+      COALESCE(SUM(s.hours), 0) as total_hours,
+      COALESCE(SUM(s.tips), 0) as total_tips,
+      COALESCE(SUM(s.usd), 0) as total_usd,
+      COALESCE(SUM(s.session_count), 0) as total_sessions,
+      COUNT(DISTINCT s.date) as days_active
+    FROM models m LEFT JOIN model_sessions s ON m.id = s.model_id
+    GROUP BY m.id ORDER BY m.name
+  `).all();
+  res.json(models);
+});
+
+app.get('/v1/models/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const model = db.prepare(`
+    SELECT m.*, COALESCE(SUM(s.tokens), 0) as total_tokens, COALESCE(SUM(s.hours), 0) as total_hours,
+      COALESCE(SUM(s.tips), 0) as total_tips, COALESCE(SUM(s.usd), 0) as total_usd, COUNT(DISTINCT s.date) as days_active
+    FROM models m LEFT JOIN model_sessions s ON m.id = s.model_id WHERE m.id = ? GROUP BY m.id
+  `).get(id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+
+  const history = db.prepare(`SELECT date, tokens, hours, tips, usd, session_count FROM model_sessions WHERE model_id = ? ORDER BY date DESC LIMIT 60`).all(id);
+  const topMembers = db.prepare(`SELECT member, spend_usd, tips, active_days FROM model_members WHERE model_name = ? ORDER BY spend_usd DESC LIMIT 10`).all(model.name);
+  const siteData = db.prepare(`SELECT * FROM model_site WHERE model_name = ?`).all(model.name);
+
+  res.json({ model, history, topMembers, siteData });
+});
+
+app.get('/v1/stats/summary', authenticateToken, (req, res) => {
+  const totalModels = db.prepare('SELECT COUNT(*) as c FROM models').get().c;
+  const totalTokens = db.prepare('SELECT COALESCE(SUM(tokens), 0) as s FROM model_sessions').get().s;
+  const totalHours = db.prepare('SELECT COALESCE(SUM(hours), 0) as s FROM model_sessions').get().s;
+  const totalUSD = db.prepare('SELECT COALESCE(SUM(usd), 0) as s FROM model_sessions').get().s;
+  
+  res.json({
+    totalModels, activeModels: totalModels,
+    totalTokens: Math.round(totalTokens),
+    totalHours: Math.round(totalHours * 10) / 10,
+    totalUSD: Math.round(totalUSD * 100) / 100,
+    avgTokensPerHour: totalHours > 0 ? Math.round(totalTokens / totalHours) : 0
+  });
+});
+
+// ═══════════════════════════════════════════
+// AI ANALYZE
+// ═══════════════════════════════════════════
+app.post('/v1/models/:id/analyze', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const model = db.prepare(`
+      SELECT m.*, COALESCE(SUM(s.tokens), 0) as total_tokens, COALESCE(SUM(s.hours), 0) as total_hours,
+        COALESCE(SUM(s.tips), 0) as total_tips, COALESCE(SUM(s.usd), 0) as total_usd, COUNT(DISTINCT s.date) as days_active
+      FROM models m LEFT JOIN model_sessions s ON m.id = s.model_id WHERE m.id = ? GROUP BY m.id
+    `).get(id);
+    if (!model) return res.status(404).json({ error: 'Model negăsit' });
+
+    const avgPerHour = model.total_hours > 0 ? model.total_tokens / model.total_hours : 0;
+    const prompt = `Ești expert coach videochat. Analizează: Nume=${model.name}, Zile=${model.days_active}, Ore=${model.total_hours.toFixed(1)}, Tokeni=${Math.round(model.total_tokens)}, Medie/oră=${Math.round(avgPerHour)}, USD=$${model.total_usd.toFixed(2)}. Generează 3-5 sugestii JSON: {"suggestions": [{"category": "...", "suggestion": "...", "priority": "high/medium/low", "action": "..."}]}`;
+
+    if (!OPENAI_API_KEY) {
+      return res.json({ suggestions: [
+        { category: "Tokeni", suggestion: "Crește frecvența sesiunilor", priority: "medium", action: "Discută tehnici engagement" },
+        { category: "Tips", suggestion: "Sistem recompense VIP", priority: "high", action: "Creează listă membri fideli" }
+      ]});
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "meta-llama/llama-3.1-8b-instruct",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    const result = JSON.parse(response.choices[0].message.content);
+    res.json({ suggestions: result.suggestions || [] });
+  } catch (err) {
+    console.error('Eroare AI:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ═══════════════════════════════════════════
+// AI INSIGHTS ENDPOINT (OpenRouter)
+// ═══════════════════════════════════════════
+app.post('/v1/bot/ai-insights', authenticateToken, async (req, res) => {
+  try {
+    const { stats } = req.body;
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) return res.status(500).json({ error: 'API Key not configured' });
+
+    const prompt = "Analizează aceste statistici Chaturbate și oferă 3 sfaturi scurte, acționabile și motivate pentru modelă, pentru a crește veniturile în următoarea oră. Răspunde STRICT în format JSON array: ['sfat 1', 'sfat 2', 'sfat 3']. Statistici: " + JSON.stringify(stats);
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'HTTP-Referer': 'https://glowbby.online',
+        'X-Title': 'GlowBot AI Insights',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'mistralai/mistral-7b-instruct',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    let insights = ["Analiză AI indisponibilă momentan. Verifică logs."];
+    
+    if (data.choices && data.choices[0]) {
+      try {
+        const parsed = JSON.parse(data.choices[0].message.content);
+        insights = Array.isArray(parsed) ? parsed : [data.choices[0].message.content];
+      } catch (e) {
+        insights = [data.choices[0].message.content];
+      }
+    }
+
+    res.json({ success: true, insights });
+  } catch (error) {
+    console.error('[AI Insights Error]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`✅ Glowbby API rulează pe portul ${PORT}`);
+});
+
+// ═══════════════════════════════════════════
+// DATE AVANSATE PENTRU VIZUALIZĂRI
+// ═══════════════════════════════════════════
+
+// Top 20 spenders global (indiferent de model)
+app.get('/v1/top-spenders', authenticateToken, (req, res) => {
+  const spenders = db.prepare(`
+    SELECT member, SUM(spend_usd) as total_spend, SUM(tips) as total_tips, COUNT(*) as appearances
+    FROM spenders
+    GROUP BY member
+    ORDER BY total_spend DESC
+    LIMIT 20
+  `).all();
+  res.json(spenders);
+});
+
+// Top spenders pentru un model specific
+app.get('/v1/models/:id/top-members', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const model = db.prepare('SELECT name FROM models WHERE id = ?').get(id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+
+  const topMembers = db.prepare(`
+    SELECT member, spend_usd, tips, active_days, last_date, scope, type, rank
+    FROM spenders
+    WHERE model_name = ?
+    ORDER BY spend_usd DESC
+    LIMIT 30
+  `).all(model.name);
+  res.json(topMembers);
+});
+
+// Date hourly heatmap pentru un model
+app.get('/v1/models/:id/hourly', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const model = db.prepare('SELECT name FROM models WHERE id = ?').get(id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+
+  const hourly = db.prepare(`
+    SELECT hour, SUM(exposure_h) as total_hours, SUM(tip_income_usd) as total_income, 
+           AVG(tip_per_h) as avg_tip_per_h, SUM(tips) as total_tips
+    FROM hourly
+    WHERE model_name = ?
+    GROUP BY hour
+    ORDER BY hour
+  `).all(model.name);
+  res.json(hourly);
+});
+
+// Date comparative între toate modelele (pentru leaderboard)
+app.get('/v1/leaderboard', authenticateToken, (req, res) => {
+  const models = db.prepare(`
+    SELECT 
+      m.id, m.name, m.platform,
+      COALESCE(SUM(s.tokens), 0) as total_tokens,
+      COALESCE(SUM(s.hours), 0) as total_hours,
+      COALESCE(SUM(s.usd), 0) as total_usd,
+      COALESCE(SUM(s.tips), 0) as total_tips,
+      COUNT(DISTINCT s.date) as days_active,
+      CASE WHEN COALESCE(SUM(s.hours), 0) > 0 
+           THEN COALESCE(SUM(s.tokens), 0) / SUM(s.hours) 
+           ELSE 0 END as tokens_per_hour,
+      CASE WHEN COALESCE(SUM(s.hours), 0) > 0 
+           THEN COALESCE(SUM(s.usd), 0) / SUM(s.hours) 
+           ELSE 0 END as usd_per_hour
+    FROM models m
+    LEFT JOIN model_sessions s ON m.id = s.model_id
+    GROUP BY m.id
+    ORDER BY total_usd DESC
+  `).all();
+  res.json(models);
+});
+
+// Dashboard stats extinse
+app.get('/v1/stats/extended', authenticateToken, (req, res) => {
+  const totalModels = db.prepare('SELECT COUNT(*) as c FROM models').get().c;
+  const totalTokens = db.prepare('SELECT COALESCE(SUM(tokens), 0) as s FROM model_sessions').get().s;
+  const totalHours = db.prepare('SELECT COALESCE(SUM(hours), 0) as s FROM model_sessions').get().s;
+  const totalUSD = db.prepare('SELECT COALESCE(SUM(usd), 0) as s FROM model_sessions').get().s;
+  const totalMembers = db.prepare('SELECT COUNT(DISTINCT member) as c FROM spenders').get().c;
+  const totalSpenders = db.prepare('SELECT COUNT(*) as c FROM spenders').get().c;
+  const topSpendTotal = db.prepare('SELECT COALESCE(SUM(spend_usd), 0) as s FROM (SELECT member, SUM(spend_usd) as spend_usd FROM spenders GROUP BY member ORDER BY spend_usd DESC LIMIT 10)').get().s;
+  
+  res.json({
+    totalModels,
+    totalTokens: Math.round(totalTokens),
+    totalHours: Math.round(totalHours * 10) / 10,
+    totalUSD: Math.round(totalUSD * 100) / 100,
+    avgTokensPerHour: totalHours > 0 ? Math.round(totalTokens / totalHours) : 0,
+    avgUSDPerHour: totalHours > 0 ? Math.round(totalUSD / totalHours * 100) / 100 : 0,
+    uniqueMembers: totalMembers,
+    totalSpenders,
+    top10SpendTotal: Math.round(topSpendTotal * 100) / 100
+  });
+});
+
+// ═══════════════════════════════════════════
+// MODEL OVERVIEW (sheet Dashboard)
+// ═══════════════════════════════════════════
+db.exec(`
+  CREATE TABLE IF NOT EXISTS model_overview (
+    model_name TEXT PRIMARY KEY,
+    rank INTEGER,
+    income_usd REAL,
+    real_hours REAL,
+    effective_usd_per_h REAL,
+    sites INTEGER,
+    primary_site TEXT,
+    primary_share REAL,
+    tips INTEGER,
+    trainer_readout TEXT,
+    repeat_rate REAL,
+    best_hour TEXT,
+    retention TEXT,
+    concentration_risk INTEGER DEFAULT 0
+  );
+`);
+
+function extractFromReadout(text) {
+  const out = { repeat_rate: null, best_hour: null, retention: null, concentration_risk: 0 };
+  if (!text) return out;
+  const s = String(text);
+  const rr = s.match(/repeat rate\s+([\d.]+)\s*%/i);
+  if (rr) out.repeat_rate = parseFloat(rr[1]);
+  const bh = s.match(/Best hour[^:]*:\s*(\d{1,2}:\d{2}-\d{1,2}:\d{2})/i);
+  if (bh) out.best_hour = bh[1];
+  const ret = s.match(/Retentie\s+(buna|slaba)/i);
+  if (ret) out.retention = ret[1].toLowerCase();
+  if (/Risc de concentrare/i.test(s)) out.concentration_risk = 1;
+  return out;
+}
+
+app.post('/v1/import/overview', authenticateToken, upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Niciun fișier' });
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const ws = workbook.Sheets['Dashboard'];
+    if (!ws) return res.status(400).json({ error: 'Sheet Dashboard lipsă' });
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+
+    const upsert = db.prepare(`INSERT INTO model_overview
+      (model_name, rank, income_usd, real_hours, effective_usd_per_h, sites, primary_site, primary_share, tips, trainer_readout, repeat_rate, best_hour, retention, concentration_risk)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(model_name) DO UPDATE SET
+        rank=excluded.rank, income_usd=excluded.income_usd, real_hours=excluded.real_hours,
+        effective_usd_per_h=excluded.effective_usd_per_h, sites=excluded.sites,
+        primary_site=excluded.primary_site, primary_share=excluded.primary_share,
+        tips=excluded.tips, trainer_readout=excluded.trainer_readout,
+        repeat_rate=excluded.repeat_rate, best_hour=excluded.best_hour,
+        retention=excluded.retention, concentration_risk=excluded.concentration_risk`);
+
+    let count = 0;
+    const tx = db.transaction(() => {
+      for (const row of rows) {
+        const name = g_s(row.Model);
+        if (!name) continue;
+        let share = g_n(row['Primary Share']);
+        if (share > 0 && share <= 1) share = share * 100;
+        const extra = extractFromReadout(row['Trainer Readout']);
+        upsert.run(name, g_i(row.Rank), g_n(row['Income $']), g_n(row['Real Hours']),
+          g_n(row['Effective $/h']), g_i(row.Sites), g_s(row['Primary Site']), share,
+          g_i(row.Tips), g_s(row['Trainer Readout']), extra.repeat_rate, extra.best_hour,
+          extra.retention, extra.concentration_risk);
+        count++;
+      }
+    });
+    tx();
+    console.log('✅ Overview importat:', count, 'modele');
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error('❌ Eroare import overview:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/v1/overview-all', authenticateToken, (req, res) => {
+  res.json(db.prepare(`
+    SELECT o.*, m.id as model_id
+    FROM model_overview o
+    LEFT JOIN models m ON m.name = o.model_name
+    ORDER BY o.rank ASC
+  `).all());
+});
+
+app.get('/v1/models/:id/overview', authenticateToken, (req, res) => {
+  const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+  res.json(db.prepare('SELECT * FROM model_overview WHERE model_name = ?').get(model.name) || null);
+});
+
+// ═══════════════════════════════════════════
+// CROSS-MODEL ANALYSIS (membri care cheltuie la mai multe modele)
+// ═══════════════════════════════════════════
+
+app.get('/v1/cross-model-spenders', authenticateToken, (req, res) => {
+  const minModels = parseInt(req.query.minModels) || 2;
+  const spenders = db.prepare(`
+    SELECT 
+      member,
+      COUNT(DISTINCT model_name) as models_count,
+      SUM(spend_usd) as total_spend,
+      SUM(tips) as total_tips,
+      MAX(active_days) as max_active_days,
+      MAX(last_date) as last_seen,
+      GROUP_CONCAT(DISTINCT model_name) as models_list
+    FROM spenders
+    GROUP BY member
+    HAVING models_count >= ?
+    ORDER BY total_spend DESC
+    LIMIT 100
+  `).all(minModels);
+  
+  // Parse models_list în array
+  spenders.forEach(s => {
+    s.models = s.models_list ? s.models_list.split(',') : [];
+    delete s.models_list;
+  });
+  
+  res.json(spenders);
+});
+
+// Membri loiali (apar la un singur model)
+app.get('/v1/loyal-spenders', authenticateToken, (req, res) => {
+  const spenders = db.prepare(`
+    SELECT 
+      member,
+      model_name,
+      SUM(spend_usd) as total_spend,
+      SUM(tips) as total_tips,
+      MAX(active_days) as active_days,
+      MAX(last_date) as last_seen,
+      scope,
+      type
+    FROM spenders
+    WHERE member IN (
+      SELECT member FROM spenders
+      GROUP BY member
+      HAVING COUNT(DISTINCT model_name) = 1
+    )
+    GROUP BY member, model_name
+    ORDER BY total_spend DESC
+    LIMIT 100
+  `).all();
+  res.json(spenders);
+});
+
+// Statistici comparative cross vs loyal
+app.get('/v1/cross-vs-loyal-stats', authenticateToken, (req, res) => {
+  const crossStats = db.prepare(`
+    SELECT 
+      COUNT(DISTINCT member) as members,
+      SUM(spend_usd) as total_spend,
+      AVG(spend_usd) as avg_spend
+    FROM (
+      SELECT member, SUM(spend_usd) as spend_usd
+      FROM spenders
+      GROUP BY member
+      HAVING COUNT(DISTINCT model_name) >= 2
+    )
+  `).get();
+  
+  const loyalStats = db.prepare(`
+    SELECT 
+      COUNT(DISTINCT member) as members,
+      SUM(spend_usd) as total_spend,
+      AVG(spend_usd) as avg_spend
+    FROM (
+      SELECT member, SUM(spend_usd) as spend_usd
+      FROM spenders
+      GROUP BY member
+      HAVING COUNT(DISTINCT model_name) = 1
+    )
+  `).get();
+  
+  const multiModel = db.prepare(`
+    SELECT 
+      COUNT(DISTINCT member) as count
+    FROM spenders
+    GROUP BY member
+    HAVING COUNT(DISTINCT model_name) >= 2
+  `).all();
+  
+  res.json({
+    cross_model: {
+      members: crossStats.members || 0,
+      total_spend: crossStats.total_spend || 0,
+      avg_spend: crossStats.avg_spend || 0
+    },
+    loyal: {
+      members: loyalStats.members || 0,
+      total_spend: loyalStats.total_spend || 0,
+      avg_spend: loyalStats.avg_spend || 0
+    }
+  });
+});
+
+// Detalii despre un membru cross-model (ce modele, cât a cheltuit la fiecare)
+app.get('/v1/member/:member/models', authenticateToken, (req, res) => {
+  const { member } = req.params;
+  const models = db.prepare(`
+    SELECT 
+      model_name,
+      SUM(spend_usd) as total_spend,
+      SUM(tips) as total_tips,
+      MAX(active_days) as active_days,
+      MAX(last_date) as last_seen,
+      scope,
+      type
+    FROM spenders
+    WHERE member = ?
+    GROUP BY model_name
+    ORDER BY total_spend DESC
+  `).all(member);
+  res.json(models);
+});
+
+// ═══════════════════════════════════════════
+// MEDIA UPLOADS (POZE + VIDEO) - REAL
+// ═══════════════════════════════════════════
+const fs = require('fs');
+const UPLOAD_ROOT = path.join(__dirname, 'uploads');
+['photos', 'videos'].forEach(d => fs.mkdirSync(path.join(UPLOAD_ROOT, d), { recursive: true }));
+app.use('/v1/uploads', express.static(UPLOAD_ROOT));
+
+function safeFolder(name) {
+  return String(name).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function makeStorage(type) {
+  return multer.diskStorage({
+    destination: (req, file, cb) => {
+      const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+      if (!model) return cb(new Error('Model negăsit'));
+      const dir = path.join(UPLOAD_ROOT, type, safeFolder(model.name));
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, Date.now() + '-' + Math.round(Math.random() * 1e6) + ext);
+    }
+  });
+}
+
+app.post('/v1/models/:id/upload-photo', authenticateToken,
+  multer({ storage: makeStorage('photos'), limits: { fileSize: 25 * 1024 * 1024, files: 20 } }).array('files', 20),
+  (req, res) => {
+    const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+    if (!model) return res.status(404).json({ error: 'Model negăsit' });
+    const urls = (req.files || []).map(f => `/v1/uploads/photos/${safeFolder(model.name)}/${f.filename}`);
+    res.json({ ok: true, count: urls.length, urls });
+  });
+
+app.post('/v1/models/:id/upload-video', authenticateToken,
+  multer({ storage: makeStorage('videos'), limits: { fileSize: 500 * 1024 * 1024, files: 5 } }).array('files', 5),
+  (req, res) => {
+    const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+    if (!model) return res.status(404).json({ error: 'Model negăsit' });
+    const urls = (req.files || []).map(f => `/v1/uploads/videos/${safeFolder(model.name)}/${f.filename}`);
+    res.json({ ok: true, count: urls.length, urls });
+  });
+
+app.get('/v1/models/:id/media', authenticateToken, (req, res) => {
+  const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+  const folder = safeFolder(model.name);
+  const read = (type) => {
+    const dir = path.join(UPLOAD_ROOT, type, folder);
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir)
+      .filter(f => fs.statSync(path.join(dir, f)).isFile())
+      .map(f => ({ filename: f, url: `/v1/uploads/${type}/${folder}/${f}`, size: fs.statSync(path.join(dir, f)).size }))
+      .sort((a, b) => b.filename.localeCompare(a.filename));
+  };
+  res.json({ photos: read('photos'), videos: read('videos') });
+});
+
+app.delete('/v1/models/:id/media/:type/:filename', authenticateToken, (req, res) => {
+  const { type, filename } = req.params;
+  if (type !== 'photos' && type !== 'videos') return res.status(400).json({ error: 'Tip invalid' });
+  const model = db.prepare('SELECT name FROM models WHERE id = ?').get(req.params.id);
+  if (!model) return res.status(404).json({ error: 'Model negăsit' });
+  const file = path.join(UPLOAD_ROOT, type, safeFolder(model.name), path.basename(filename));
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+  res.json({ ok: true });
+});

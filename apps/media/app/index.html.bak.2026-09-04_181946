@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1f2937">
+    <title>Glowbby Media Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='cameraGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%238b5cf6;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23ec4899;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='15' y='30' width='70' height='50' rx='8' fill='url(%23cameraGrad)' opacity='0.9'/%3E%3Ccircle cx='50' cy='55' r='15' fill='%231f2937' opacity='0.95'/%3E%3Ccircle cx='50' cy='55' r='10' fill='url(%23cameraGrad)' opacity='0.6'/%3E%3Ccircle cx='50' cy='55' r='5' fill='%23ffffff' opacity='0.9'/%3E%3Crect x='35' y='22' width='30' height='12' rx='4' fill='url(%23cameraGrad)' opacity='0.8'/%3E%3Ccircle cx='75' cy='38' r='3' fill='%23fbbf24' opacity='0.9'/%3E%3C/svg%3E">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { overscroll-behavior: none; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #8b5cf6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-active { background-color: #8b5cf6; color: white; }
+        .tab-inactive { background-color: #1f2937; color: #9ca3af; }
+        .tab-inactive:hover { background-color: #374151; }
+        .prompt-btn { 
+            font-size: 0.75rem; 
+            background-color: #374151; 
+            color: #d1d5db; 
+            padding: 0.5rem 0.875rem; 
+            border-radius: 9999px; 
+            transition: all 0.2s;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-height: 36px;
+        }
+        .prompt-btn:hover, .prompt-btn:active { 
+            background-color: #4b5563; 
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        @media (max-width: 768px) {
+            .prompt-btn { font-size: 0.8125rem; padding: 0.625rem 1rem; }
+        }
+        .lucky-btn, .ai-btn {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            z-index: 10;
+            min-height: 36px;
+        }
+        .lucky-btn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+        }
+        .ai-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        }
+        .lucky-btn:active, .ai-btn:active { transform: scale(0.95); }
+        @media (max-width: 768px) {
+            .lucky-btn, .ai-btn { font-size: 0.8125rem; padding: 0.625rem 1rem; }
+        }
+        .ai-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .ai-modal.active { display: flex; }
+        .ai-modal-content {
+            background: #1f2937;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid #8b5cf6;
+        }
+        @media (max-width: 640px) {
+            .ai-modal-content { padding: 1.25rem; border-radius: 0.75rem; }
+        }
+        .ai-response {
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        .typing-indicator { display: flex; gap: 4px; padding: 0.5rem; justify-content: center; }
+        .typing-indicator span {
+            width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        
+        /* Mobile drawer */
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 85%;
+            max-width: 320px;
+            height: 100vh;
+            background: #1f2937;
+            z-index: 1100;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        .mobile-drawer.open { transform: translateX(0); }
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1050;
+            backdrop-filter: blur(2px);
+        }
+        .drawer-overlay.open { display: block; }
+        
+        /* Action sheet pentru upload */
+        .action-sheet {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1200;
+            padding: 0 1rem 1rem 1rem;
+        }
+        .action-sheet.active { display: block; animation: slideUp 0.3s ease; }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .action-sheet-content {
+            background: #1f2937;
+            border-radius: 1.5rem 1.5rem 1rem 1rem;
+            padding: 0.75rem;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            border: 1px solid #374151;
+        }
+        .action-sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #4b5563;
+            border-radius: 2px;
+            margin: 0.5rem auto 1rem auto;
+        }
+        .action-sheet-btn {
+            width: 100%;
+            padding: 1rem;
+            background: #374151;
+            color: white;
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .action-sheet-btn:active { transform: scale(0.98); background: #4b5563; }
+        .action-sheet-btn-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        .action-sheet-cancel {
+            background: #111827;
+            margin-top: 0.5rem;
+            justify-content: center;
+            color: #9ca3af;
+            font-weight: 600;
+        }
+        
+        /* Touch-friendly */
+        button, select, input, textarea, label { touch-action: manipulation; }
+        input[type="file"] { font-size: 16px; }
+        
+        /* Prevent zoom on iOS */
+        input, select, textarea { font-size: 16px !important; }
+        @media (min-width: 768px) {
+            input, select, textarea { font-size: inherit !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Mobile Header -->
+    <header class="md:hidden bg-gray-800 border-b border-gray-700 px-4 py-3 flex justify-between items-center z-40 shrink-0">
+        <button onclick="toggleMobileDrawer()" class="p-2 -ml-2 hover:bg-gray-700 rounded-lg transition" aria-label="Meniu">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+        <h1 class="text-lg font-bold text-purple-400">Glowbby Studio</h1>
+        <button onclick="showUploadActionSheet()" class="bg-purple-600 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+            📷 <span id="upload-btn-text">Upload</span>
+        </button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Desktop Sidebar -->
+        <aside class="hidden md:flex w-64 bg-gray-800 border-r border-gray-700 flex-col shrink-0">
+            <div class="p-6 border-b border-gray-700">
+                <h1 class="text-2xl font-bold text-purple-400">Glowbby Studio</h1>
+                <p class="text-xs text-gray-400 mt-1">Platformă AI pentru Creatori</p>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="switchTab('outfit')" id="btn-outfit" class="w-full text-left px-4 py-3 rounded-lg tab-active transition flex items-center gap-3">👗 Outfit Change</button>
+                <button onclick="switchTab('background')" id="btn-background" class="w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🌅 Fundal</button>
+                <button onclick="switchTab('video')" id="btn-video" class="w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🎬 Video Motion</button>
+            </nav>
+            <div class="p-4 border-t border-gray-700">
+                <label class="cursor-pointer bg-purple-600 hover:bg-purple-700 px-4 py-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 w-full">
+                    📷 Încarcă Master Image
+                    <input type="file" id="master-image" accept="image/*" class="hidden" onchange="previewImage(this, 'desktop')">
+                </label>
+                <div class="flex items-center gap-2 mt-3">
+                    <img id="master-preview" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500 hidden">
+                    <button onclick="clearMasterImage()" id="clear-master-btn" class="hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Drawer -->
+        <div id="drawer-overlay" class="drawer-overlay" onclick="toggleMobileDrawer()"></div>
+        <aside id="mobile-drawer" class="mobile-drawer md:hidden">
+            <div class="p-6 border-b border-gray-700 flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold text-purple-400">Glowbby Studio</h1>
+                    <p class="text-xs text-gray-400 mt-1">Platformă AI pentru Creatori</p>
+                </div>
+                <button onclick="toggleMobileDrawer()" class="p-2 hover:bg-gray-700 rounded-lg" aria-label="Închide">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <nav class="p-4 space-y-2">
+                <button onclick="switchTab('outfit', true)" class="mobile-tab-btn w-full text-left px-4 py-3 rounded-lg tab-active transition flex items-center gap-3">👗 Outfit Change</button>
+                <button onclick="switchTab('background', true)" class="mobile-tab-btn w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🌅 Fundal</button>
+                <button onclick="switchTab('video', true)" class="mobile-tab-btn w-full text-left px-4 py-3 rounded-lg tab-inactive transition flex items-center gap-3">🎬 Video Motion</button>
+            </nav>
+            <div class="p-4 border-t border-gray-700">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="triggerCamera()" class="bg-gradient-to-r from-pink-600 to-purple-600 px-3 py-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
+                        📸 <span>Poză live</span>
+                    </button>
+                    <button onclick="triggerGallery()" class="bg-gray-700 hover:bg-gray-600 px-3 py-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
+                        🖼️ <span>Galerie</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 mt-3">
+                    <img id="master-preview-drawer" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500 hidden">
+                    <button onclick="clearMasterImage()" id="clear-master-btn-drawer" class="hidden bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                    <span id="master-name-drawer" class="text-xs text-gray-400 truncate hidden"></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="file-camera" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(this)">
+        <input type="file" id="file-gallery" accept="image/*" class="hidden" onchange="handleFileSelect(this)">
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Desktop Header -->
+            <header class="hidden md:flex bg-gray-800 border-b border-gray-700 p-4 justify-between items-center shrink-0">
+                <h2 id="page-title" class="text-xl font-semibold">Outfit Change</h2>
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <img id="master-preview-desktop" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500 hidden">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Mobile Sub-header with current tab -->
+            <div class="md:hidden bg-gray-800/50 border-b border-gray-700 px-4 py-2 flex items-center justify-between shrink-0">
+                <h2 id="page-title-mobile" class="text-sm font-semibold">Outfit Change</h2>
+                <div class="flex gap-1">
+                    <button onclick="switchTab('outfit')" class="mobile-tab-icon text-xs px-2 py-1 rounded bg-purple-600">👗</button>
+                    <button onclick="switchTab('background')" class="mobile-tab-icon text-xs px-2 py-1 rounded bg-gray-700">🌅</button>
+                    <button onclick="switchTab('video')" class="mobile-tab-icon text-xs px-2 py-1 rounded bg-gray-700">🎬</button>
+                </div>
+            </div>
+
+            <!-- Workspace -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 max-w-7xl mx-auto">
+                    <!-- Controls Panel -->
+                    <div class="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700 space-y-4 order-2 lg:order-1">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Prompt / Descriere</label>
+                            <div class="relative">
+                                <textarea id="prompt" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 pb-14 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none text-base" placeholder="Ex: Modelul poartă o rochie elegantă..."></textarea>
+                                <div class="absolute bottom-2 left-2 right-2 flex justify-between gap-2">
+                                    <button onclick="openAIAssistant()" type="button" class="ai-btn" title="AI Assistant">
+                                        🤖 <span>AI</span>
+                                    </button>
+                                    <button onclick="feelingLucky(this)" type="button" class="lucky-btn" title="Prompt aleatoriu">
+                                        🎲 <span>Lucky</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="prompt-suggestions" class="flex flex-wrap gap-2 mt-3 max-h-32 overflow-y-auto">
+                                <!-- Butoanele vor fi generate aici dinamic -->
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Aspect Ratio</label>
+                                <select id="aspect-ratio" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none">
+                                    <option value="1:1">1:1 (Pătrat)</option>
+                                    <option value="16:9">16:9 (Landscape)</option>
+                                    <option value="9:16">9:16 (Portrait)</option>
+                                </select>
+                            </div>
+                            <div id="video-controls" class="hidden">
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Durată Video</label>
+                                <select id="video-duration" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none">
+                                    <option value="5">5 secunde</option>
+                                    <option value="10">10 secunde</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button onclick="generateContent()" id="generate-btn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 md:py-4 rounded-lg transition flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-base md:text-lg">
+                            <span>✨ Generează</span>
+                        </button>
+
+                        <div id="progress-container" class="hidden">
+                            <div class="flex justify-between text-sm text-gray-400 mb-1">
+                                <span id="progress-text">Se procesează...</span>
+                                <span id="progress-time">0s</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div id="progress-bar" class="bg-purple-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result Panel -->
+                    <div class="bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-700 flex flex-col items-center justify-center min-h-[300px] md:min-h-[400px] relative order-1 lg:order-2">
+                        <div id="result-placeholder" class="text-gray-500 text-center">
+                            <svg class="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <p class="text-sm md:text-base">Rezultatul va apărea aici</p>
+                        </div>
+                        <div id="result-content" class="hidden w-full flex flex-col items-center">
+                            <img id="result-image" class="max-w-full max-h-[300px] md:max-h-[500px] rounded-lg shadow-2xl hidden cursor-pointer hover:opacity-90 transition hover:scale-[1.02]" onclick="openLightbox('image')" title="Click pentru fullscreen">
+                            <video id="result-video" class="max-w-full max-h-[300px] md:max-h-[500px] rounded-lg shadow-2xl hidden cursor-pointer hover:opacity-90 transition hover:scale-[1.02]" onclick="openLightbox('video')" title="Click pentru fullscreen" playsinline></video>
+                            <a id="download-btn" href="#" download="glowbby-result" class="mt-4 bg-gray-700 hover:bg-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2">⬇️ Descarcă</a>
+                        </div>
+                        <div id="loader" class="hidden absolute inset-0 bg-gray-800 bg-opacity-90 flex flex-col items-center justify-center rounded-xl">
+                            <div class="loader mb-4"></div>
+                            <p class="text-purple-400 font-medium text-sm md:text-base">AI-ul lucrează...</p>
+                            <p class="text-xs text-gray-400 mt-2">Durează până la 2-3 min</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Assistant Modal -->
+    <div id="ai-modal" class="ai-modal">
+        <div class="ai-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg md:text-xl font-bold text-purple-400 flex items-center gap-2">🤖 AI Assistant</h3>
+                <button onclick="closeAIAssistant()" class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <p class="text-sm text-gray-400 mb-4">Descrie ideea ta, iar AI-ul va crea un prompt profesional detaliat.</p>
+            <textarea id="ai-input" rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ex: rochie roșie elegantă pentru o petrecere de seară..."></textarea>
+            <button onclick="callAIAssistant()" id="ai-submit-btn" class="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 rounded-lg transition flex justify-center items-center gap-2">
+                <span>✨ Generează Prompt</span>
+            </button>
+            <div id="ai-response-container" class="hidden">
+                <h4 class="text-sm font-semibold text-gray-300 mt-4 mb-2">Prompt Generat:</h4>
+                <div id="ai-response" class="ai-response"></div>
+                <button onclick="useAIPrompt()" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg transition">
+                    ✅ Folosește Acest Prompt
+                </button>
+            </div>
+            <div id="ai-loading" class="hidden">
+                <div class="typing-indicator">
+                    <span></span><span></span><span></span>
+                </div>
+                <p class="text-sm text-gray-400 text-center">AI-ul se gândește...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Upload Action Sheet -->
+    <div id="upload-action-sheet" class="action-sheet">
+        <div class="action-sheet-content">
+            <div class="action-sheet-handle"></div>
+            <h3 class="text-center text-gray-300 font-semibold mb-4 text-base">Alege sursa imaginii</h3>
+            
+            <button onclick="triggerCamera(); hideUploadActionSheet();" class="action-sheet-btn">
+                <div class="action-sheet-btn-icon bg-gradient-to-br from-pink-500 to-purple-600">📸</div>
+                <div class="flex-1 text-left">
+                    <div class="font-semibold">Fă poză cu camera</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Pozează live acum</div>
+                </div>
+            </button>
+            
+            <button onclick="triggerGallery(); hideUploadActionSheet();" class="action-sheet-btn">
+                <div class="action-sheet-btn-icon bg-gradient-to-br from-blue-500 to-cyan-600">🖼️</div>
+                <div class="flex-1 text-left">
+                    <div class="font-semibold">Alege din galerie</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Selectează o poză existentă</div>
+                </div>
+            </button>
+            
+            <button onclick="hideUploadActionSheet()" class="action-sheet-btn action-sheet-cancel">
+                Anulează
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'outfit';
+        let startTime = 0;
+        let progressInterval;
+
+        const promptSuggestions = {
+            outfit: [
+                'Elegant black evening dress, professional studio lighting, high fashion photography, 8k resolution',
+                'Casual streetwear outfit, denim jacket and white t-shirt, urban fashion style, natural lighting',
+                'Professional business suit, navy blue blazer with white shirt, corporate portrait, clean background',
+                'Summer beach outfit, flowing sundress, golden hour lighting, vacation vibes',
+                'Athletic wear, sports bra and leggings, fitness photography, dynamic pose',
+                'Vintage 1950s dress, retro style, pin-up aesthetic, classic colors',
+                'Bohemian festival outfit, colorful patterns, flower crown, outdoor setting',
+                'Minimalist monochrome outfit, all white ensemble, modern fashion, clean lines',
+                'Luxury lingerie set, silk and lace, elegant boudoir photography, soft lighting',
+                'Winter fashion, cozy sweater and scarf, cold weather outfit, studio photography'
+            ],
+            background: [
+                'Professional photography studio, seamless white backdrop, studio lighting setup',
+                'Luxury hotel room interior, modern minimalist design, natural window light',
+                'Tropical beach at sunset, golden hour, ocean waves, palm trees in background',
+                'Urban city street at night, neon lights, bokeh effect, cinematic atmosphere',
+                'Forest clearing, natural sunlight filtering through trees, outdoor portrait',
+                'Rooftop terrace with city skyline, urban backdrop, evening atmosphere',
+                'Vintage library interior, wooden bookshelves, classic academic setting',
+                'Modern art gallery, white walls, contemporary artwork, minimalist space',
+                'Flower garden in full bloom, colorful petals, romantic outdoor setting',
+                'Industrial warehouse, exposed brick walls, steel beams, urban loft aesthetic'
+            ],
+            video: [
+                'Subtle smile, gentle eye movement, natural facial expressions, cinematic close-up',
+                'Wind blowing through hair, slow motion, outdoor atmosphere, dynamic movement',
+                'Slow turn of the head, looking over shoulder, elegant pose, professional modeling',
+                'Walking forward confidently, fashion runway style, steady camera movement',
+                'Laughing naturally, candid moment, genuine emotion, lifestyle photography',
+                'Hand gently touching face, soft gesture, intimate portrait, slow motion',
+                'Dancing gracefully, fluid body movement, artistic expression, smooth animation',
+                'Looking around curiously, exploring environment, natural head movement',
+                'Blinking naturally, maintaining eye contact, subtle facial animation',
+                'Posing with hands on hips, confident stance, slight body sway, power pose'
+            ]
+        };
+
+        function updatePromptSuggestions() {
+            const container = document.getElementById('prompt-suggestions');
+            container.innerHTML = '';
+            const prompts = promptSuggestions[currentTab] || [];
+            prompts.forEach(prompt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'prompt-btn';
+                btn.textContent = prompt.split(',')[0];
+                btn.title = prompt;
+                btn.onclick = () => {
+                    document.getElementById('prompt').value = prompt;
+                    btn.classList.add('ring-2', 'ring-purple-500');
+                    setTimeout(() => btn.classList.remove('ring-2', 'ring-purple-500'), 800);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function feelingLucky(btn) {
+            const prompts = promptSuggestions[currentTab] || [];
+            if (prompts.length === 0) return;
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = '', 200);
+            const randomIndex = Math.floor(Math.random() * prompts.length);
+            const textarea = document.getElementById('prompt');
+            textarea.value = prompts[randomIndex];
+            textarea.style.borderColor = '#f59e0b';
+            setTimeout(() => { textarea.style.borderColor = ''; }, 800);
+        }
+
+        function openAIAssistant() {
+            document.getElementById('ai-modal').classList.add('active');
+            document.getElementById('ai-input').value = '';
+            document.getElementById('ai-response-container').classList.add('hidden');
+            setTimeout(() => document.getElementById('ai-input').focus(), 100);
+        }
+
+        function closeAIAssistant() {
+            document.getElementById('ai-modal').classList.remove('active');
+        }
+
+        async function callAIAssistant() {
+            const input = document.getElementById('ai-input').value.trim();
+            if (!input) { alert('Te rog să scrii o idee!'); return; }
+
+            document.getElementById('ai-submit-btn').disabled = true;
+            document.getElementById('ai-loading').classList.remove('hidden');
+            document.getElementById('ai-response-container').classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('message', input);
+            formData.append('context_type', currentTab);
+
+            try {
+                const response = await fetch('/api/ai-assistant', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Eroare AI');
+
+                document.getElementById('ai-loading').classList.add('hidden');
+                document.getElementById('ai-response-container').classList.remove('hidden');
+                document.getElementById('ai-response').textContent = data.response;
+            } catch (error) {
+                document.getElementById('ai-loading').classList.add('hidden');
+                alert('Eroare: ' + error.message);
+            } finally {
+                document.getElementById('ai-submit-btn').disabled = false;
+            }
+        }
+
+        function useAIPrompt() {
+            const aiResponse = document.getElementById('ai-response').textContent;
+            document.getElementById('prompt').value = aiResponse;
+            closeAIAssistant();
+            const textarea = document.getElementById('prompt');
+            textarea.style.borderColor = '#8b5cf6';
+            setTimeout(() => { textarea.style.borderColor = ''; }, 800);
+        }
+
+        function toggleMobileDrawer() {
+            const drawer = document.getElementById('mobile-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            const isOpen = drawer.classList.contains('open');
+            if (isOpen) {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+                document.body.style.overflow = '';
+            } else {
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function showUploadActionSheet() {
+            const sheet = document.getElementById('upload-action-sheet');
+            sheet.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideUploadActionSheet() {
+            const sheet = document.getElementById('upload-action-sheet');
+            sheet.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function triggerCamera() {
+            document.getElementById('file-camera').click();
+        }
+
+        function triggerGallery() {
+            document.getElementById('file-gallery').click();
+        }
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result;
+                    localStorage.setItem('masterImageBase64', base64);
+                    syncAllPreviews(base64);
+                    
+                    // Update upload button text on mobile
+                    const btnText = document.getElementById('upload-btn-text');
+                    if (btnText) btnText.textContent = 'Schimbă';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function syncAllPreviews(base64) {
+            ['master-preview', 'master-preview-desktop', 'master-preview-drawer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.src = base64;
+                    el.classList.remove('hidden');
+                }
+            });
+            ['clear-master-btn', 'clear-master-btn-drawer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('hidden');
+            });
+        }
+
+        function previewImage(input, source) {
+            handleFileSelect(input);
+        }
+
+        function clearMasterImage() {
+            localStorage.removeItem('masterImageBase64');
+            ['master-preview', 'master-preview-desktop', 'master-preview-drawer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            ['clear-master-btn', 'clear-master-btn-drawer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            ['file-camera', 'file-gallery', 'master-image'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            // Reset upload button text
+            const btnText = document.getElementById('upload-btn-text');
+            if (btnText) btnText.textContent = 'Upload';
+        }
+
+        function switchTab(tab, fromDrawer = false) {
+            currentTab = tab;
+            // Update desktop sidebar buttons
+            document.querySelectorAll('aside.hidden.md\\:flex nav button').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('tab-inactive');
+            });
+            const desktopBtn = document.getElementById(`btn-${tab}`);
+            if (desktopBtn) {
+                desktopBtn.classList.remove('tab-inactive');
+                desktopBtn.classList.add('tab-active');
+            }
+
+            // Update mobile drawer buttons
+            document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('tab-inactive');
+            });
+            document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+                if (btn.onclick && btn.onclick.toString().includes(`'${tab}'`)) {
+                    btn.classList.remove('tab-inactive');
+                    btn.classList.add('tab-active');
+                }
+            });
+
+            // Update mobile quick icons
+            document.querySelectorAll('.mobile-tab-icon').forEach(btn => {
+                btn.classList.remove('bg-purple-600');
+                btn.classList.add('bg-gray-700');
+            });
+            const icons = {'outfit': '👗', 'background': '🌅', 'video': '🎬'};
+            document.querySelectorAll('.mobile-tab-icon').forEach(btn => {
+                if (btn.textContent.trim() === icons[tab]) {
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-purple-600');
+                }
+            });
+
+            const titles = { 'outfit': 'Outfit Change', 'background': 'Schimbare Fundal', 'video': 'Video Motion' };
+            const titleDesktop = document.getElementById('page-title');
+            const titleMobile = document.getElementById('page-title-mobile');
+            if (titleDesktop) titleDesktop.textContent = titles[tab];
+            if (titleMobile) titleMobile.textContent = titles[tab];
+            
+            const videoControls = document.getElementById('video-controls');
+            if (tab === 'video') {
+                videoControls.classList.remove('hidden');
+                document.getElementById('prompt').placeholder = "Ex: zâmbet subtil, mișcare cinematică...";
+            } else {
+                videoControls.classList.add('hidden');
+                document.getElementById('prompt').placeholder = "Ex: rochie elegantă de seară...";
+            }
+            
+            updatePromptSuggestions();
+
+            // Close drawer on mobile after selecting
+            if (fromDrawer && window.innerWidth < 768) {
+                setTimeout(toggleMobileDrawer, 200);
+            }
+        }
+
+        function startProgress() {
+            startTime = Date.now();
+            document.getElementById('progress-container').classList.remove('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+            progressInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('progress-time').textContent = elapsed + 's';
+                const progress = Math.min((elapsed / (currentTab === 'video' ? 120 : 40)) * 90, 90);
+                document.getElementById('progress-bar').style.width = progress + '%';
+            }, 1000);
+        }
+
+        function stopProgress() {
+            clearInterval(progressInterval);
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        async function generateContent() {
+            const prompt = document.getElementById('prompt').value;
+            const aspectRatio = document.getElementById('aspect-ratio').value;
+            
+            let imageFile = null;
+            
+            // Try to get file from camera or gallery inputs
+            const inputs = ['file-camera', 'file-gallery', 'master-image'];
+            for (const id of inputs) {
+                const input = document.getElementById(id);
+                if (input && input.files && input.files[0]) {
+                    imageFile = input.files[0];
+                    break;
+                }
+            }
+            
+            // Fallback to localStorage
+            if (!imageFile) {
+                const savedImage = localStorage.getItem('masterImageBase64');
+                if (savedImage) {
+                    try {
+                        const res = await fetch(savedImage);
+                        const blob = await res.blob();
+                        imageFile = new File([blob], "master-image.jpg", { type: blob.type || "image/jpeg" });
+                    } catch(e) {
+                        console.error('Error loading from localStorage:', e);
+                    }
+                }
+            }
+
+            if (!imageFile) { 
+                if (window.innerWidth < 768) {
+                    showUploadActionSheet();
+                } else {
+                    alert('Te rog să încarci o Master Image!');
+                }
+                return; 
+            }
+            if (!prompt) { alert('Te rog să introduci un prompt!'); return; }
+
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('prompt', prompt);
+            formData.append('aspect_ratio', aspectRatio);
+
+            let endpoint = '/api/generate';
+            if (currentTab === 'outfit') endpoint = '/api/replace-bg';
+            else if (currentTab === 'video') {
+                endpoint = '/api/generate-video';
+                formData.append('duration', document.getElementById('video-duration').value);
+            }
+
+            document.getElementById('result-placeholder').classList.add('hidden');
+            document.getElementById('result-content').classList.add('hidden');
+            startProgress();
+
+            try {
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Eroare la generare');
+
+                stopProgress();
+                document.getElementById('result-content').classList.remove('hidden');
+
+                if (currentTab === 'video' && data.video_url) {
+                    const videoEl = document.getElementById('result-video');
+                    videoEl.src = data.video_url;
+                    videoEl.classList.remove('hidden');
+                    document.getElementById('result-image').classList.add('hidden');
+                    document.getElementById('download-btn').href = data.video_url;
+                    document.getElementById('download-btn').download = 'glowbby-video.mp4';
+                } else if (data.image) {
+                    const imgEl = document.getElementById('result-image');
+                    imgEl.src = data.image;
+                    imgEl.classList.remove('hidden');
+                    document.getElementById('result-video').classList.add('hidden');
+                    document.getElementById('download-btn').href = data.image;
+                    document.getElementById('download-btn').download = 'glowbby-image.jpg';
+                }
+                
+                // Scroll to result on mobile
+                if (window.innerWidth < 1024) {
+                    setTimeout(() => {
+                        document.getElementById('result-content').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+            } catch (error) {
+                stopProgress();
+                alert('Eroare: ' + error.message);
+                document.getElementById('result-placeholder').classList.remove('hidden');
+            }
+        }
+
+        // Init
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedImage = localStorage.getItem('masterImageBase64');
+            if (savedImage) {
+                syncAllPreviews(savedImage);
+                const btnText = document.getElementById('upload-btn-text');
+                if (btnText) btnText.textContent = 'Schimbă';
+            }
+            updatePromptSuggestions();
+        });
+
+        // Close modal on escape and click outside action sheet
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeAIAssistant();
+                hideUploadActionSheet();
+                const drawer = document.getElementById('mobile-drawer');
+                if (drawer.classList.contains('open')) toggleMobileDrawer();
+            }
+        });
+
+        // Click outside action sheet to close
+        document.getElementById('upload-action-sheet').addEventListener('click', (e) => {
+            if (e.target.id === 'upload-action-sheet') {
+                hideUploadActionSheet();
+            }
+        });
+    </script>
+</body>
+</html>
+
+<!-- LIGHTBOX FULLSCREEN -->
+<div id="lightbox" class="fixed inset-0 bg-black bg-opacity-95 z-[9999] hidden flex-col items-center justify-center p-4" onclick="if(event.target.id === 'lightbox') closeLightbox()">
+    <!-- Close button -->
+    <button onclick="closeLightbox()" class="absolute top-4 right-4 md:top-6 md:right-6 w-12 h-12 md:w-14 md:h-14 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center text-white text-3xl md:text-4xl transition z-10 backdrop-blur-sm" aria-label="Închide">
+        ×
+    </button>
+    
+    <!-- Image fullscreen -->
+    <img id="lightbox-image" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl hidden touch-pinch-zoom">
+    
+    <!-- Video fullscreen -->
+    <video id="lightbox-video" class="max-w-full max-h-[85vh] rounded-lg shadow-2xl hidden" controls autoplay playsinline></video>
+    
+    <!-- Info bar -->
+    <div id="lightbox-info" class="absolute bottom-4 md:bottom-6 left-4 right-4 md:left-6 md:right-6 flex justify-between items-center text-white text-xs md:text-sm pointer-events-none">
+        <div class="flex items-center gap-2">
+            <span class="bg-purple-600 px-2 py-1 rounded text-xs font-bold">HD</span>
+            <span class="text-gray-300">Click în afara pentru a închide</span>
+        </div>
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <button onclick="downloadFromLightbox(event)" class="bg-white bg-opacity-10 hover:bg-opacity-20 backdrop-blur-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                ⬇️ <span class="hidden sm:inline">Descarcă</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="bg-gray-900 border-t border-gray-800 py-4 px-4 text-center shrink-0">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+        <p class="text-gray-500 text-xs md:text-sm">
+            Powered by 
+            <a href="https://chat.glowbby.online" target="_blank" rel="noopener noreferrer" class="text-purple-400 hover:text-purple-300 font-semibold transition">
+                GlowBBY ✨
+            </a>
+        </p>
+        <a href="https://chat.glowbby.online" target="_blank" rel="noopener noreferrer" 
+           class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition shadow-md hover:shadow-lg">
+            💬 <span>Send messages to Members</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+        </a>
+    </div>
+</footer>
+
+<style>
+    /* Lightbox animations */
+    #lightbox.show { animation: fadeIn 0.3s ease; }
+    #lightbox img, #lightbox video { animation: zoomIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    
+    /* Pinch zoom support for mobile */
+    .touch-pinch-zoom { touch-action: pinch-zoom pan-x pan-y; }
+    
+    /* Mobile lightbox adjustments */
+    @media (max-width: 640px) {
+        #lightbox { padding: 0; }
+        #lightbox img, #lightbox video { max-height: 80vh; border-radius: 0; }
+        #lightbox button[aria-label="Închide"] { top: 1rem; right: 1rem; }
+    }
+</style>
+
+<script>
+    // Lightbox functions
+    let lightboxMedia = null;
+
+    function openLightbox(type) {
+        const lightbox = document.getElementById('lightbox');
+        const imgEl = document.getElementById('lightbox-image');
+        const videoEl = document.getElementById('lightbox-video');
+        
+        // Reset both
+        imgEl.classList.add('hidden');
+        videoEl.classList.add('hidden');
+        videoEl.pause();
+        
+        if (type === 'image') {
+            const sourceImg = document.getElementById('result-image');
+            if (sourceImg.src) {
+                imgEl.src = sourceImg.src;
+                imgEl.classList.remove('hidden');
+                lightboxMedia = { type: 'image', src: sourceImg.src };
+            }
+        } else if (type === 'video') {
+            const sourceVideo = document.getElementById('result-video');
+            if (sourceVideo.src) {
+                videoEl.src = sourceVideo.src;
+                videoEl.classList.remove('hidden');
+                lightboxMedia = { type: 'video', src: sourceVideo.src };
+                setTimeout(() => videoEl.play().catch(e => console.log('Autoplay prevented')), 100);
+            }
+        }
+        
+        lightbox.classList.remove('hidden');
+        lightbox.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        const lightbox = document.getElementById('lightbox');
+        const videoEl = document.getElementById('lightbox-video');
+        videoEl.pause();
+        videoEl.src = '';
+        lightbox.classList.add('hidden');
+        lightbox.classList.remove('show');
+        document.body.style.overflow = '';
+        lightboxMedia = null;
+    }
+
+    function downloadFromLightbox(event) {
+        event.stopPropagation();
+        if (lightboxMedia) {
+            const downloadBtn = document.getElementById('download-btn');
+            if (downloadBtn) {
+                downloadBtn.click();
+            }
+        }
+    }
+
+    // Add Escape key handler for lightbox
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('hidden')) {
+                closeLightbox();
+                return;
+            }
+        }
+    });
+</script>
